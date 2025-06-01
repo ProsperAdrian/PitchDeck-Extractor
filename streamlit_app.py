@@ -60,19 +60,27 @@ def set_custom_styles():
         background-color: #265DAB;
         transform: scale(1.02);
     }}
-
-    /* ✅ Center the uploader and set narrow width */
     .narrow-uploader {{
         max-width: 500px;
         margin-left: auto;
         margin-right: auto;
     }}
-
-    /* ✅ Hide uploaded file display (name, size, icon, X button) */
     div[data-testid="stFileUploader"] > div > div:nth-child(2),
     div[data-testid="stFileUploader"] ul,
     div[data-testid="stFileUploader"] li {{
         display: none !important;
+    }}
+    .success-msg-container {{
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        margin-top: -0.5rem;
+        margin-bottom: 3rem;
+    }}
+    .extracted-title {{
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 0.8rem;
     }}
     </style>
     """
@@ -89,15 +97,12 @@ Upload one or more pitch-deck PDFs. This tool leverages AI & predefined heuristi
 
 # ----------------- File Upload -----------------
 st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
-
 uploaded_files = st.file_uploader(
     "Drag & drop PDF(s) here (or click to browse)", 
     type=["pdf"],
     accept_multiple_files=True,
 )
-
 st.markdown('</div>', unsafe_allow_html=True)
-
 
 # ----------------- Processing -----------------
 if uploaded_files:
@@ -152,9 +157,8 @@ if uploaded_files:
 
         df = pd.DataFrame(rows)
 
-        st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
         st.markdown('<div class="extracted-title">📑 Extracted Results</div>', unsafe_allow_html=True)
-st.dataframe(df, use_container_width=True)
+        st.dataframe(df, use_container_width=True)
 
         # ----------------- Export Options -----------------
         json_str = json.dumps(all_results, indent=2)
