@@ -1,5 +1,3 @@
-# streamlit_app.py
-
 import streamlit as st
 import pandas as pd
 import os, json
@@ -10,64 +8,95 @@ from analyze import build_few_shot_prompt, call_chatgpt
 
 openai_api_key = st.secrets["openai"]["api_key"]
 
-
-# --------------------------------------------------
+# ----------------- UI Setup -----------------
 st.set_page_config(
     page_title="Pitch Deck Extractor",
     layout="wide",
 )
 
+# Inject modern design
+def set_background():
+    page_bg_img = f"""
+    <style>
+    .stApp {{
+        background-image: url("data:image/png;base64,YOUR_BASE64_IMAGE_HERE");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }}
+    .block-container {{
+        background-color: rgba(255, 255, 255, 0.92);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    }}
+    h1 {{
+        font-size: 2.4rem;
+        font-weight: 700;
+    }}
+    .stButton>button {{
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        border: none;
+        background-color: #3A86FF;
+        color: white;
+        font-weight: 600;
+        transition: 0.3s ease;
+    }}
+    .stButton>button:hover {{
+        background-color: #265DAB;
+        transform: scale(1.02);
+    }}
+    </style>
+    """
+    st.markdown(page_bg_img, unsafe_allow_html=True)
+
+set_background()
+
+# ----------------- App Title -----------------
 st.title("📊 Pitch Deck Extractor")
+st.markdown("""
+Upload one or more pitch-deck PDFs. We'll extract key fields like:
+**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Funding Stage**, **Revenue**, **Market (TAM/SAM/SOM)** and more.
+""")
 
-st.markdown("Upload one or more pitch-deck PDFs. We will extract StartupName, FoundingYear, Founders, Industry, Niche, USP, FundingStage, CurrentRevenue, Market (TAM/SAM/SOM), AmountRaised, etc.")
+# ----------------- File Upload -----------------
+with st.container():
+    st.subheader("📂 Upload Pitch Decks")
+    uploaded_files = st.file_uploader(
+        "Drag & drop PDF(s) here (or click to browse)", 
+        type=["pdf"],
+        accept_multiple_files=True,
+    )
 
-# Step 1: Let user upload multiple PDFs
-uploaded_files = st.file_uploader(
-    "Drag & drop PDF(s) here (or click to browse)", 
-    type=["pdf"],
-    accept_multiple_files=True,
-)
-
+# ----------------- Processing -----------------
 if uploaded_files:
-    # Initialize a list to hold each deck's JSON
-    all_results = []
+    with st.spinner("🔎 Analyzing pitch decks..."):
+        all_results = []
 
-    # Optionally: create a temp folder in memory or on disk
-    # We'll just process directly from the file‐buffer, no need to save to disk.
-    for pdf_file in uploaded_files:
-        st.write(f"Processing **{pdf_file.name}**…")
+        for pdf_file in uploaded_files:
+            st.markdown(f"#### Processing: `{pdf_file.name}`")
+            bytes_data = pdf_file.read()
 
-        # 2a) Extract text from PDF. 
-        # extract_text_from_pdf can accept either a filepath or a file‐like buffer.
-        # If yours only accepts a filepath, you can write the buffer to a temp file:
-        bytes_data = pdf_file.read()
-        with open(f"temp_{pdf_file.name}", "wb") as f:
-            f.write(bytes_data)
-        deck_text = extract_text_from_pdf(f"temp_{pdf_file.name}")
-        os.remove(f"temp_{pdf_file.name}")
+            with open(f"temp_{pdf_file.name}", "wb") as f:
+                f.write(bytes_data)
 
-        # 2b) Build the few‐shot prompt
-        prompt = build_few_shot_prompt(deck_text)
+            try:
+                deck_text = extract_text_from_pdf(f"temp_{pdf_file.name}")
+                os.remove(f"temp_{pdf_file.name}")
+                prompt = build_few_shot_prompt(deck_text)
+                result = call_chatgpt(prompt, api_key=openai_api_key)
+                result["__filename"] = pdf_file.name
+                all_results.append(result)
 
-        # 2c) Call ChatGPT
-        try:
-            result = call_chatgpt(prompt, api_key=openai_api_key)
-        except Exception as e:
-            st.error(f"Error extracting **{pdf_file.name}**: {e}")
-            continue
+            except Exception as e:
+                st.error(f"❌ Error processing {pdf_file.name}: {e}")
+                continue
 
-        # 2d) Attach filename to the JSON
-        result["__filename"] = pdf_file.name
-
-        # 2e) Post‐processing (if you added any inference logic inside analyze.py, it still applies)
-        #    (By default, analyze.py’s own code already does the null→inference pass.)
-
-        all_results.append(result)
-
-    # If we got at least one result, show them in a table
+    # ----------------- Display Results -----------------
     if all_results:
-        # 3) Normalize JSON records into a flat table. 
-        #    Each “row” is one deck. Flatten "Market" into three columns: TAM, SAM, SOM.
+        st.success("✅ All pitch decks processed successfully!")
+
         rows = []
         for rec in all_results:
             row = {
@@ -89,23 +118,26 @@ if uploaded_files:
             rows.append(row)
 
         df = pd.DataFrame(rows)
-        st.markdown("### Extraction Results")
+
+        st.markdown("### 📑 Extracted Results")
         st.dataframe(df, use_container_width=True)
 
-        # 4) Offer JSON download as well
+        # ----------------- Export Options -----------------
         json_str = json.dumps(all_results, indent=2)
-        st.download_button(
-            label="Export as JSON", 
-            data=json_str, 
-            file_name="All_decks.json",
-            mime="application/json"
-        )
-
-        # 5) Offer CSV download
         csv_str = df.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="Export as CSV", 
-            data=csv_str,
-            file_name="All_decks.csv",
-            mime="text/csv"
-        )
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.download_button(
+                label="📥 Export as JSON", 
+                data=json_str, 
+                file_name="All_decks.json",
+                mime="application/json"
+            )
+        with col2:
+            st.download_button(
+                label="📊 Export as CSV", 
+                data=csv_str,
+                file_name="All_decks.csv",
+                mime="text/csv"
+            )
