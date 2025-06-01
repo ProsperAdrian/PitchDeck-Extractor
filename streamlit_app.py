@@ -10,11 +10,11 @@ openai_api_key = st.secrets["openai"]["api_key"]
 
 # ----------------- UI Setup -----------------
 st.set_page_config(
-    page_title="Pitch Deck Extractor",
+    page_title="Pitch Deck Analysis",
     layout="wide",
 )
 
-# Inject modern design
+# Inject modern design with exact font sizes
 def set_background():
     page_bg_img = f"""
     <style>
@@ -31,8 +31,20 @@ def set_background():
         box-shadow: 0 8px 30px rgba(0,0,0,0.1);
     }}
     h1 {{
-        font-size: 2.4rem;
+        font-size: 24px !important;
         font-weight: 700;
+    }}
+    .custom-subheader {{
+        font-size: 16px;
+        font-weight: 600;
+        margin-top: 2rem;
+        margin-bottom: 0.5rem;
+    }}
+    .uploaded-filename, .processing-msg, .success-msg, .extracted-title {{
+        font-size: 12px;
+        font-weight: 500;
+        color: #222;
+        margin: 0.2rem 0;
     }}
     .stButton>button {{
         border-radius: 8px;
@@ -54,20 +66,23 @@ def set_background():
 set_background()
 
 # ----------------- App Title -----------------
-st.title("📊 Pitch Deck Extractor")
+st.markdown('<h1>📊 Pitch Deck Extractor</h1>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch-deck PDFs. This tool leverages AI & predefined heuristics to extract:
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Funding Stage**, **Revenue**, **Market (TAM/SAM/SOM)**.
 """)
 
 # ----------------- File Upload -----------------
-with st.container():
-    st.subheader("📂 Upload Pitch Decks")
-    uploaded_files = st.file_uploader(
-        "Drag & drop PDF(s) here (or click to browse)", 
-        type=["pdf"],
-        accept_multiple_files=True,
-    )
+st.markdown('<div class="custom-subheader">📂 Upload Pitch Decks</div>', unsafe_allow_html=True)
+uploaded_files = st.file_uploader(
+    "Drag & drop PDF(s) here (or click to browse)", 
+    type=["pdf"],
+    accept_multiple_files=True,
+)
+
+if uploaded_files:
+    for f in uploaded_files:
+        st.markdown(f'<div class="uploaded-filename">{f.name} &nbsp; {(f.size / 1e6):.1f}MB</div>', unsafe_allow_html=True)
 
 # ----------------- Processing -----------------
 if uploaded_files:
@@ -75,7 +90,10 @@ if uploaded_files:
         all_results = []
 
         for pdf_file in uploaded_files:
-            st.markdown(f"#### Processing: `{pdf_file.name}`")
+            st.markdown(
+                f'<div class="processing-msg">Processing: <code>{pdf_file.name}</code></div>',
+                unsafe_allow_html=True
+            )
             bytes_data = pdf_file.read()
 
             with open(f"temp_{pdf_file.name}", "wb") as f:
@@ -95,7 +113,10 @@ if uploaded_files:
 
     # ----------------- Display Results -----------------
     if all_results:
-        st.success("✅ All pitch decks processed successfully!")
+        st.markdown(
+            '<div class="success-msg">✅ All pitch decks processed successfully!</div>',
+            unsafe_allow_html=True
+        )
 
         rows = []
         for rec in all_results:
@@ -119,7 +140,7 @@ if uploaded_files:
 
         df = pd.DataFrame(rows)
 
-        st.markdown("### 📑 Extracted Results")
+        st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True)
 
         # ----------------- Export Options -----------------
