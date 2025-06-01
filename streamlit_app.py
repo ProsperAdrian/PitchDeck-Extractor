@@ -203,10 +203,6 @@ with tab1:
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
             for pdf_file in uploaded_files:
-                st.markdown(
-                    f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>',
-                    unsafe_allow_html=True,
-                )
 
                 raw_bytes = pdf_file.read()
                 temp_folder = "temp"
