@@ -6,10 +6,6 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from extract_text import extract_text_from_pdf  # our Phase 2 function
 
-# Load the OpenAI API key from .env
-load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 # Folder paths
 INPUT_FOLDER = "input_decks"
 OUTPUT_FOLDER = "parsed_entities"
