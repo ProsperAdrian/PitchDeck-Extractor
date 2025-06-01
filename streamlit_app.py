@@ -2,14 +2,20 @@
 
 import streamlit as st
 import pandas as pd
-import os, json
-import fitz  # PyMuPDF, to render PDF pages as images
+import os, json, io, warnings
+import fitz  # PyMuPDF, used to render PDF pages as images
+import matplotlib.pyplot as plt  # for the Dashboard pie chart
 
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
 
 # --- Pull OpenAI key from Streamlit secrets ---
 openai_api_key = st.secrets["openai"]["api_key"]
+
+# ----------------- SUPPRESS STREAMLIT DEPRECATION WARNINGS -----------------
+# We switch from `use_column_width=` to `use_container_width=` for images, so
+# the warnings should go away. Just in case, silence other minor warnings:
+warnings.filterwarnings("ignore", category=UserWarning)
 
 # ----------------- UI SETUP -----------------
 st.set_page_config(
@@ -21,8 +27,6 @@ def set_custom_styles():
     custom_css = f"""
     <style>
     .stApp {{
-        /* Optional: set a background image as base64 if you like */
-        /* background-image: url("data:image/png;base64,YOUR_BASE64_HERE"); */
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -105,7 +109,7 @@ tab1, tab2 = st.tabs(["1️⃣ Library View", "2️⃣ Dashboard View"])
 # ----------------- TAB 1: LIBRARY VIEW -----------------
 #
 with tab1:
-    # Center the uploader
+    # Narrow the uploader to center
     st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
         "Drag & drop PDF(s) here (or click to browse)", 
@@ -115,44 +119,38 @@ with tab1:
     st.markdown('</div>', unsafe_allow_html=True)
 
     all_results = []
-    pdf_buffers = {}   # Keep the raw bytes so we can preview key slides
-    df = None          # Will hold the DataFrame once extraction is done
+    pdf_buffers = {}  # Keep raw bytes of each PDF so we can render key slides
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
-            # Ensure a temp folder exists
-            os.makedirs("temp", exist_ok=True)
-
             for pdf_file in uploaded_files:
-                st.markdown(
-                    f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>',
-                    unsafe_allow_html=True
-                )
+                # Show filename being processed
+                st.markdown(f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>', unsafe_allow_html=True)
 
-                # Save file‐buffer to disk so extract_text can read it
+                # Save buffer temporarily to disk so extract_text can read it
                 bytes_data = pdf_file.read()
-                temp_path = os.path.join("temp", pdf_file.name)
+                temp_folder = "temp"
+                os.makedirs(temp_folder, exist_ok=True)
+                temp_path = os.path.join(temp_folder, pdf_file.name)
                 with open(temp_path, "wb") as f:
                     f.write(bytes_data)
 
                 try:
-                    # 1) Extract full text from PDF
+                    # 1) Extract all slide text
                     deck_text = extract_text_from_pdf(temp_path)
                     os.remove(temp_path)
 
-                    # 2) Build the few‐shot prompt & call GPT
+                    # 2) Build and run our few‐shot prompt
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
                     result["__filename"] = pdf_file.name
                     all_results.append(result)
 
-                    # 3) Keep raw bytes for key‐slide previews
+                    # 3) Store the raw PDF bytes for “Key Slide Preview”
                     pdf_buffers[pdf_file.name] = bytes_data
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
                     continue
 
         if all_results:
@@ -165,15 +163,16 @@ with tab1:
             # Build a Pandas DataFrame of extracted results
             rows = []
             for rec in all_results:
-                startup_name  = rec.get("StartupName") or rec.get("Startup Name")
+                # The JSON keys might be either "StartupName" or "Startup Name" depending on your analyze.py
+                startup_name = rec.get("StartupName") or rec.get("Startup Name")
                 founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
-                founders      = rec.get("Founders") or []
-                industry      = rec.get("Industry")
-                niche         = rec.get("Niche")
-                usp           = rec.get("USP")
+                founders = rec.get("Founders") or []
+                industry = rec.get("Industry")
+                niche = rec.get("Niche")
+                usp = rec.get("USP")
                 funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
-                curr_rev      = rec.get("CurrentRevenue") or rec.get("Current Revenue")
-                amt_raised    = rec.get("AmountRaised") or rec.get("Amount Raised")
+                current_revenue = rec.get("CurrentRevenue") or rec.get("Current Revenue")
+                amount_raised = rec.get("AmountRaised") or rec.get("Amount Raised")
 
                 row = {
                     "Filename": rec.get("__filename"),
@@ -184,8 +183,8 @@ with tab1:
                     "Niche": niche,
                     "USP": usp,
                     "Funding Stage": funding_stage,
-                    "Current Revenue": curr_rev,
-                    "Amount Raised": amt_raised,
+                    "Current Revenue": current_revenue,
+                    "Amount Raised": amount_raised,
                 }
                 market = rec.get("Market") or {}
                 row["TAM"] = market.get("TAM")
@@ -200,7 +199,7 @@ with tab1:
 
             # ----------------- Export Buttons -----------------
             json_str = json.dumps(all_results, indent=2)
-            csv_str  = df.to_csv(index=False).encode("utf-8")
+            csv_str = df.to_csv(index=False).encode("utf-8")
 
             col1, col2 = st.columns(2)
             with col1:
@@ -220,88 +219,70 @@ with tab1:
 
             st.markdown("---")
 
-    #
-    # ----------------- Key Slide Preview -----------------
-    #
-    if df is not None and not df.empty:
-        st.markdown("### 🔑 Key Slide Preview")
-        st.markdown(
-            "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
-        )
+            #
+            # ----------------- Key Slide Preview Picker -----------------
+            #
+            st.markdown("### 🔑 Key Slide Preview")
+            st.markdown(
+                "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
+            )
 
-        options = df["Filename"].tolist()
-        selected_deck = st.selectbox(
-            "❓ Which Deck would you like to preview?",
-            options=options
-        )
+            # Because df and pdf_buffers exist, we can safely build the selectbox
+            selected_deck = st.selectbox(
+                "❓ Which Deck would you like to preview?",
+                options=df["Filename"].tolist()
+            )
 
-        if selected_deck:
-            pdf_bytes = pdf_buffers[selected_deck]
-            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+            if selected_deck:
+                pdf_bytes = pdf_buffers[selected_deck]
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-            # We will pick THREE distinct pages: Team, Market, Traction
-            team_idx = None
-            market_idx = None
-            traction_idx = None
+                # 1) Scan every page’s extracted text to find “TEAM”, “MARKET”, “TRACTION”
+                page_texts = []
+                for pg in doc:
+                    text = pg.get_text().upper()  # uppercase for case‐insensitive search
+                    page_texts.append(text)
 
-            # (1) First pass: find the Team slide: look for “team” or “founder”
-            for i in range(doc.page_count):
-                text = doc[i].get_text().lower()
-                if ("team" in text or "founder" in text) and team_idx is None:
-                    team_idx = i
+                def find_first_index(keyword):
+                    keyword = keyword.upper()
+                    for idx, content in enumerate(page_texts):
+                        if keyword in content:
+                            return idx
+                    return None
 
-            # (2) Next pass: find the Market slide: look for explicit “tam” / “market size” / “market opportunity” / “sam” / “som”
-            for i in range(doc.page_count):
-                if team_idx is not None and i == team_idx:
-                    continue
-                text = doc[i].get_text().lower()
-                if (
-                    "tam" in text
-                    or "market size" in text
-                    or "market opportunity" in text
-                    or "sam" in text
-                    or "som" in text
-                ) and market_idx is None:
-                    market_idx = i
+                team_idx = find_first_index("TEAM")
+                market_idx = find_first_index("MARKET")
+                traction_idx = find_first_index("TRACTION")
 
-            # (3) Final pass: find the Traction slide: look for “traction” or “gross revenue” or “revenue”
-            for i in range(doc.page_count):
-                if i == team_idx or i == market_idx:
-                    continue
-                text = doc[i].get_text().lower()
-                if (
-                    "traction" in text
-                    or "gross revenue" in text
-                    or "revenue" in text
-                ) and traction_idx is None:
-                    traction_idx = i
+                key_slides = []
+                if team_idx is not None:
+                    key_slides.append(("Team Slide (page {})".format(team_idx + 1), team_idx))
+                if market_idx is not None:
+                    key_slides.append(("Market Slide (page {})".format(market_idx + 1), market_idx))
+                if traction_idx is not None:
+                    key_slides.append(("Traction Slide (page {})".format(traction_idx + 1), traction_idx))
 
-            key_slides = {}
-            if team_idx is not None:
-                key_slides["Team Slide"] = team_idx
-            if market_idx is not None:
-                key_slides["Market Slide"] = market_idx
-            if traction_idx is not None:
-                key_slides["Traction Slide"] = traction_idx
+                # If none of those were found, show a message
+                if not key_slides:
+                    st.warning("⚠️ Could not find any “Team,” “Market,” or “Traction” slides in this deck.")
+                else:
+                    cols = st.columns(len(key_slides))
+                    for col, (label, page_index) in zip(cols, key_slides):
+                        if page_index < doc.page_count:
+                            page = doc[page_index]
+                            pix = page.get_pixmap(dpi=100)
+                            img_bytes = pix.tobytes("png")  # use_container_width → True
+                            col.image(
+                                img_bytes,
+                                caption=label,
+                                use_container_width=True
+                            )
+                        else:
+                            col.write(f"❌ {label} not found (out of range)")
+                doc.close()
 
-            if not key_slides:
-                st.info("⚠️ Unable to auto‐detect Team/Market/Traction slides in this deck.")
-            else:
-                cols = st.columns(len(key_slides))
-                for col, (label, idx) in zip(cols, key_slides.items()):
-                    if idx < doc.page_count:
-                        page = doc[idx]
-                        pix = page.get_pixmap(dpi=100)
-                        img_bytes = pix.tobytes("png")
-                        col.image(
-                            img_bytes,
-                            caption=f"{label} (page {idx+1})",
-                            use_container_width=True
-                        )
-                    else:
-                        col.write(f"❌ {label} out of range")
+    # If no files have been uploaded yet, we skip all of the above and show nothing.
 
-            doc.close()
 
 #
 # ----------------- TAB 2: DASHBOARD VIEW -----------------
@@ -309,21 +290,22 @@ with tab1:
 with tab2:
     st.markdown("## 📊 Dashboard & Interactive Filtering")
 
-    if not all_results:
+    # We only proceed if “df” (the DataFrame) exists and has at least one row
+    if "df" not in locals() or df.empty:
         st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
     else:
-        # Reconstruct a small DataFrame for filtering & charts
+        # Re‐construct a smaller DataFrame for filtering/charts
         rows2 = []
         for rec in all_results:
             startup_name = rec.get("StartupName") or rec.get("Startup Name")
-            fy_raw       = rec.get("FoundingYear") or rec.get("Founding Year")
-
+            founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
+            # Convert to int if possible
             try:
-                founding_year = int(fy_raw)
+                founding_year = int(founding_year)
             except:
                 founding_year = None
 
-            industry      = rec.get("Industry")
+            industry = rec.get("Industry")
             funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
 
             rows2.append({
@@ -342,67 +324,74 @@ with tab2:
         # Industry filter
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect(
-            "Industry",
-            options=all_industries,
-            default=all_industries
+            "Industry", options=all_industries, default=all_industries
         )
 
-        # Founding Year range (guard against missing/None)
-        years_list = df2["Founding Year"].dropna().astype(int).tolist()
-        if len(years_list) == 0:
-            st.sidebar.info("No numeric founding‐year data available.")
-            sel_year_range = (None, None)
+        # Founding Year range
+        non_na_years = df2["Founding Year"].dropna()
+        if not non_na_years.empty:
+            min_year = int(non_na_years.min())
+            max_year = int(non_na_years.max())
         else:
-            min_year = min(years_list)
-            max_year = max(years_list)
-            if min_year == max_year:
-                st.sidebar.write(f"Founded in: {min_year}")
-                sel_year_range = (min_year, max_year)
-            else:
-                sel_year_range = st.sidebar.slider(
-                    "Founding Year Range",
-                    min_value=min_year,
-                    max_value=max_year,
-                    value=(min_year, max_year)
-                )
+            min_year = None
+            max_year = None
+
+        if min_year is not None and max_year is not None:
+            sel_year_range = st.sidebar.slider(
+                "Founding Year Range", 
+                min_year, 
+                max_year, 
+                (min_year, max_year)
+            )
+        else:
+            sel_year_range = (None, None)
 
         # Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
-            "Funding Stage",
-            options=all_stages,
-            default=all_stages
+            "Funding Stage", options=all_stages, default=all_stages
         )
 
         # ------- Apply Filters -------
-        mask = (
-            df2["Industry"].isin(sel_industries)
-            & df2["Funding Stage"].isin(sel_stages)
-        )
-        if sel_year_range[0] is not None and sel_year_range[1] is not None:
-            yr_min, yr_max = sel_year_range
-            mask &= df2["Founding Year"].between(yr_min, yr_max)
-
-        filtered = df2[mask]
+        if min_year is not None and max_year is not None:
+            filtered = df2[
+                (df2["Industry"].isin(sel_industries)) &
+                (df2["Funding Stage"].isin(sel_stages)) &
+                (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
+            ]
+        else:
+            # If no numeric founding years, just filter by industry & funding stage
+            filtered = df2[
+                (df2["Industry"].isin(sel_industries)) &
+                (df2["Funding Stage"].isin(sel_stages))
+            ]
 
         st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
 
         # ------- Summary Charts -------
         if not filtered.empty:
-            # 1) Industry Breakdown (bar chart)
+            # Industry Breakdown
             st.markdown("**Industry Breakdown**")
             industry_counts = filtered["Industry"].value_counts()
             st.bar_chart(industry_counts)
 
-            # 2) Founding Year Distribution (bar chart)
+            # Founding Year Distribution
             st.markdown("**Founding Year Distribution**")
-            year_counts = filtered["Founding Year"].value_counts().sort_index()
-            st.bar_chart(year_counts)
+            if "Founding Year" in filtered.columns and filtered["Founding Year"].notna().any():
+                year_counts = filtered["Founding Year"].value_counts().sort_index()
+                st.bar_chart(year_counts)
 
-            # 3) Funding Stage Breakdown (bar chart)
+            # Funding Stage Pie Chart (via Matplotlib)
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts()
-            st.bar_chart(stage_counts)
+            fig, ax = plt.subplots(figsize=(4, 4))
+            stage_counts.plot.pie(
+                autopct="%.0f%%", 
+                ylabel="", 
+                legend=False, 
+                ax=ax
+            )
+            st.pyplot(fig)
 
         st.markdown("---")
 
