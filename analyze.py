@@ -112,9 +112,9 @@ You are an expert at extracting structured data from investor pitch decks. For e
   "Niche": string or null,          # free-text description e.g. “crypto exchange”, “mobile betting”, “AI tutoring”
   "USP": string or null,            # a single sentence from the deck that states the unique selling proposition
   "Funding Stage": string or null,   # If no explicit round is mentioned, Scan the deck for the following signals: • capital sought, • traction metrics (users, revenue, growth), • product maturity, • team size & seniority, • prior funding, • planned use of funds, • target investors, • implied valuation. Using these signals and standard VC heuristics, decide the most probable funding round (Pre-seed, Seed, Series A, Series B, Series C or later).
-  "Current Revenue": string or null, # what value best indicates the ARR for the latest financial year of the company? be careful as total sales, and volume may not be revenue, and value in billion are very unlikely. often between 0 and 100 million.
+  "Current Revenue": string or null, # Based on the latest year shown across the deck, what is the company's most recent revenue figure?
   "Market": { "TAM": string or null, "SAM": string or null, "SOM": string or null } or null,
-  "Amount Raised": string or null,  # what is the likely cummulative amount the startup has raised from inception?
+  "Amount Raised": string or null,  # How much funds has this startup previously raised from investors since its inception? do not include the amount they want to raise in future
 }
 If any field is not present, set it to null.
 
