@@ -124,10 +124,11 @@ if uploaded_files:
 
     # ----------------- Display Results -----------------
     if all_results:
-        st.markdown(
-            '<div class="success-msg">✅ All pitch decks processed successfully!</div>',
-            unsafe_allow_html=True
-        )
+        st.markdown("""
+<div class="success-msg-container">
+    ✅ All pitch decks processed successfully!
+</div>
+""", unsafe_allow_html=True)
 
         rows = []
         for rec in all_results:
