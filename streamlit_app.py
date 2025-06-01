@@ -41,7 +41,7 @@ def set_custom_styles():
         margin-bottom: 0.5rem;
     }}
     .uploaded-filename, .processing-msg, .success-msg, .extracted-title {{
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 500;
         color: #222;
         margin: 0.2rem 0;
@@ -146,7 +146,7 @@ if uploaded_files:
 
         df = pd.DataFrame(rows)
 
-        st.markdown('<div class="extracted-title">📑 Extracted Results</div>', unsafe_allow_html=True)
+        st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True)
 
         # ----------------- Export Options -----------------
