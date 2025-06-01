@@ -33,7 +33,7 @@ SAM: $2.2 Billion +
 Market Opp.: $193 Million +
 ----- Slide 12 -----
 Traction:
-Gross Revenues in 2020: $3,100
+Gross Revenues in 2020: $3.1k
 """
 
 EXAMPLE_1_JSON = {
@@ -44,8 +44,8 @@ EXAMPLE_1_JSON = {
   "Niche": "Mobile sports betting",
   "USP": "Yabscore is the first fully mobile sports-betting platform tailored to Nigerian football fans, offering in-play wagering and live performance stats.",
   "Funding Stage": None,
-  "Current Revenue": "$3,100",
-  "Market": { "TAM": "$95 Billion", "SAM": "$2.2 Billion", "SOM": "$193 Million" },
+  "Current Revenue": "$3.1k",
+  "Market": { "TAM": "$95B", "SAM": "$2.2B", "SOM": "$193B" },
   "Amount Raised": "$0"
 }
 
