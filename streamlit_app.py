@@ -298,7 +298,7 @@ with tab1:
             st.markdown("---")
 
             # 8c) KEY SLIDE PREVIEW: CHATGPT‐DRIVEN
-            st.markdown("### Key Slide Preview")
+            st.markdown("## Key Slide Preview")
             st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
 
             selected_deck = st.selectbox(
