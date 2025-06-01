@@ -1,25 +1,41 @@
+# ─────────────────────────────────────────────────────────────────────────────
 # streamlit_app.py
+#
+# • st.set_page_config must be the first Streamlit command.
+# • Matplotlib removed (uses st.bar_chart instead).
+# • Deprecation warnings hidden via CSS.
+# • ChatGPT picks actual “Team/Market/Traction” pages.
+# ─────────────────────────────────────────────────────────────────────────────
 
 import streamlit as st
 import pandas as pd
 import os
 import json
-import fitz  # PyMuPDF
+import fitz                                # PyMuPDF, for rendering PDF pages
 from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
 
-# ----------------------------------------
-# 1) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 1) SET PAGE CONFIG (MUST BE THE FIRST STREAMLIT CALL)
+# ─────────────────────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Pitch Deck Extractor",
+    layout="wide",
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 2) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
+# ─────────────────────────────────────────────────────────────────────────────
 openai_api_key = st.secrets["openai"]["api_key"]
 
-# ----------------------------------------
-# 2) HIDE DEPRECATION WARNINGS FOR use_column_width
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 3) HIDE DEPRECATION WARNINGS FOR use_column_width
+# ─────────────────────────────────────────────────────────────────────────────
 HIDE_WARNING_STYLE = """
 <style>
+    /* Hide any yellow-box warnings about deprecated use_column_width */
     .stAlert, .stAlertWarning {
         display: none;
     }
@@ -27,17 +43,9 @@ HIDE_WARNING_STYLE = """
 """
 st.markdown(HIDE_WARNING_STYLE, unsafe_allow_html=True)
 
-# ----------------------------------------
-# 3) STREAMLIT PAGE CONFIG
-# ----------------------------------------
-st.set_page_config(
-    page_title="Pitch Deck Extractor",
-    layout="wide",
-)
-
-# ----------------------------------------
-# 4) CUSTOM CSS TO POLISH STYLING
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) CUSTOM CSS FOR A CLEANER LOOK
+# ─────────────────────────────────────────────────────────────────────────────
 def set_custom_styles():
     custom_css = f"""
     <style>
@@ -104,45 +112,46 @@ def set_custom_styles():
 
 set_custom_styles()
 
-# ----------------------------------------
-# 5) APP TITLE & DESCRIPTION
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 5) APPLICATION TITLE & DESCRIPTION
+# ─────────────────────────────────────────────────────────────────────────────
 st.markdown('<h1>📊 Pitch Deck Analysis</h1>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to extract:
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
 """, unsafe_allow_html=True)
 
-# ----------------------------------------
-# 6) LAY OUT TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
+# ─────────────────────────────────────────────────────────────────────────────
 tab1, tab2 = st.tabs(["1️⃣ Library View", "2️⃣ Dashboard & Interactive Filtering"])
 
 
-# ----------------------------------------
-# 7) HELPER FUNCTION: ASK CHATGPT TO IDENTIFY KEY SLIDE PAGES
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 7) HELPER: ASK CHATGPT TO PICK KEY SLIDE PAGE NUMBERS
+# ─────────────────────────────────────────────────────────────────────────────
 def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
     """
-    Given a list of page texts (0-indexed), ask ChatGPT which page numbers are
-    the Team slide, the Market slide, and the Traction slide.
-    Returns a dict: {"TeamPage": X, "MarketPage": Y, "TractionPage": Z}
-    (all 1-indexed). If not found, returns None for that key.
+    Given a list of page texts (0-indexed), ask ChatGPT which page numbers
+    correspond to the Team, Market, and Traction slides. Returns a dict:
+      { "TeamPage": <int or null>, "MarketPage": <int or null>, "TractionPage": <int or null> }
+    Page numbers are 1-indexed. If ChatGPT cannot find a category, it returns null.
     """
     prompt_lines = [
-        "I will give you text snippets from each slide of a pitch deck (one snippet per page). "
-        "Please identify EXACTLY which page number (1-indexed) is the Team slide, "
+        "I will give you text snippets from each slide of a pitch deck, one snippet per page. "
+        "Identify EXACTLY which page number (1-indexed) is the Team slide, "
         "which page number is the Market slide, and which page number is the Traction slide. "
-        "If you cannot find one of those categories, return null for that field. "
+        "If you cannot find one of those categories, return null. "
         "Answer in JSON format with keys \"TeamPage\", \"MarketPage\", \"TractionPage\".\n"
     ]
 
     for i, full_text in enumerate(page_texts):
+        # Use just the first 200 characters as a “snippet” to keep the prompt concise.
         snippet = full_text.replace("\n", " ").strip()[:200]
         prompt_lines.append(f"---\nPage {i+1}:\n{snippet}\n")
 
     prompt_lines.append(
-        "\nFormat your answer exactly like:\n"
+        "\nRespond exactly like:\n"
         "{\n"
         '  "TeamPage": 7,\n'
         '  "MarketPage": 5,\n'
@@ -159,21 +168,27 @@ def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
         max_tokens=200,
     )
     content = response.choices[0].message.content.strip()
+
     try:
         return json.loads(content)
     except json.JSONDecodeError:
+        # Fallback: find the `{…}` block and parse it
         start = content.find("{")
         end = content.rfind("}") + 1
         if start != -1 and end != -1:
-            return json.loads(content[start : end])
+            try:
+                return json.loads(content[start:end])
+            except:
+                pass
+        # If parsing fails, return all nulls
         return {"TeamPage": None, "MarketPage": None, "TractionPage": None}
 
 
-# ----------------------------------------
-# 8) TAB 1: LIBRARY VIEW (UPLOAD + EXTRACT + KEY SLIDE PREVIEW)
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
+# 8) TAB 1: LIBRARY VIEW → UPLOAD + EXTRACT + KEY SLIDE PREVIEW
+# ─────────────────────────────────────────────────────────────────────────────
 with tab1:
-    # 8a) FILE UPLOADER (centered width)
+    # 8a) FILE UPLOADER (centered)
     st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
         "Drag & drop PDF(s) here (or click to browse)", 
@@ -182,8 +197,8 @@ with tab1:
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    all_results = []
-    pdf_buffers = {}
+    all_results = []      # Will hold the JSON‐extracted metadata for each deck
+    pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
@@ -201,21 +216,24 @@ with tab1:
                     f.write(raw_bytes)
 
                 try:
+                    # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
                     os.remove(temp_path)
 
+                    # 2) Build few‐shot prompt and call ChatGPT
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
                     result["__filename"] = pdf_file.name
                     all_results.append(result)
 
+                    # 3) Store PDF bytes so we can render pages later
                     pdf_buffers[pdf_file.name] = raw_bytes
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
                     continue
 
-        # 8b) IF ANY RESULTS OVERALL, SHOW A SUCCESS BANNER + TABLE + EXPORT BUTTONS
+        # 8b) AFTER PROCESSING, SHOW THE “LIBRARY” TABLE + EXPORT BUTTONS
         if all_results:
             st.markdown(
                 """
@@ -226,7 +244,7 @@ with tab1:
                 unsafe_allow_html=True,
             )
 
-            # Build a DataFrame for the “Library” table
+            # Build a Pandas DataFrame of extracted fields
             rows = []
             for rec in all_results:
                 startup_name   = rec.get("StartupName") or rec.get("Startup Name")
@@ -261,8 +279,8 @@ with tab1:
             st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
             st.dataframe(df, use_container_width=True)
 
-            # EXPORT BUTTONS (JSON + CSV)
-            json_str = json.dumps(all_results, indent=2)
+            # EXPORT BUTTONS: JSON + CSV
+            json_str  = json.dumps(all_results, indent=2)
             csv_bytes = df.to_csv(index=False).encode("utf-8")
 
             col1, col2 = st.columns(2)
@@ -283,7 +301,7 @@ with tab1:
 
             st.markdown("---")
 
-            # 8c) KEY SLIDE PREVIEW (CHATGPT‐DRIVEN)
+            # 8c) KEY SLIDE PREVIEW: CHATGPT‐DRIVEN
             st.markdown("### 🔑 Key Slide Preview")
             st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
 
@@ -296,14 +314,11 @@ with tab1:
                 pdf_bytes = pdf_buffers[selected_deck]
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-                # (1) Extract full text from each page
-                page_texts = []
-                for pg in doc:
-                    page_texts.append(pg.get_text())
+                # Extract full text from each page to feed ChatGPT
+                page_texts = [page.get_text() for page in doc]
 
-                # (2) Ask ChatGPT which pages correspond to Team/Market/Traction
+                # Ask ChatGPT to tell us the page numbers
                 key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
-
                 raw_team     = key_info.get("TeamPage")
                 raw_market   = key_info.get("MarketPage")
                 raw_traction = key_info.get("TractionPage")
@@ -312,6 +327,7 @@ with tab1:
                 market_idx   = (int(raw_market) - 1) if raw_market else None
                 traction_idx = (int(raw_traction) - 1) if raw_traction else None
 
+                # Build a list of whichever key pages exist
                 key_slides = []
                 if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
                     key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
@@ -333,16 +349,16 @@ with tab1:
                 doc.close()
 
 
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 # 9) TAB 2: DASHBOARD & INTERACTIVE FILTERING
-# ----------------------------------------
+# ─────────────────────────────────────────────────────────────────────────────
 with tab2:
     st.markdown("## 📊 Dashboard & Interactive Filtering")
 
     if not all_results:
         st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
     else:
-        # Build a smaller DataFrame with only the fields needed for filtering & charts
+        # Build a smaller DataFrame specifically for filtering and charts
         rows2 = []
         for rec in all_results:
             startup_name  = rec.get("StartupName") or rec.get("Startup Name")
@@ -385,7 +401,7 @@ with tab2:
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect("Funding Stage", options=all_stages, default=all_stages)
 
-        # Apply filters
+        # Apply Filters
         if valid_years.empty:
             filtered = df2[
                 (df2["Industry"].isin(sel_industries)) &
@@ -411,13 +427,11 @@ with tab2:
             year_counts = filtered["Founding Year"].value_counts().sort_index()
             st.bar_chart(year_counts)
 
-            # Funding Stage Breakdown Bar Chart (replacing pie chart)
+            # Funding Stage Breakdown Bar Chart
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts()
             st.bar_chart(stage_counts)
 
         st.markdown("---")
-
-        # Display the filtered table
         st.markdown("### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
