@@ -3,9 +3,13 @@
 import streamlit as st
 import pandas as pd
 import os, json
+import openai
 
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
+
+openai.api_key = st.secrets["OPENAI_API_KEY"]
+
 
 # --------------------------------------------------
 st.set_page_config(
