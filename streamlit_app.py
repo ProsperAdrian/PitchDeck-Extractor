@@ -97,7 +97,7 @@ if uploaded_files:
         st.download_button(
             label="Export as JSON", 
             data=json_str, 
-            file_name="all_decks_parsed.json",
+            file_name="All_decks.json",
             mime="application/json"
         )
 
@@ -106,6 +106,6 @@ if uploaded_files:
         st.download_button(
             label="Export as CSV", 
             data=csv_str,
-            file_name="all_decks_parsed.csv",
+            file_name="All_decks.csv",
             mime="text/csv"
         )
