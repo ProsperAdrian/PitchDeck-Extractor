@@ -21,7 +21,7 @@ def set_custom_styles():
     custom_css = f"""
     <style>
     .stApp {{
-        /* (Optional) You can embed a local base64 image, e.g. YOUR_BASE64_IMAGE_HERE */
+        /* (Optional) You can embed a local base64 image here */
         /* background-image: url("data:image/png;base64,YOUR_BASE64_IMAGE_HERE"); */
         background-size: cover;
         background-position: center;
@@ -116,17 +116,23 @@ with tab1:
 
     all_results = []
     pdf_buffers = {}  # Keep raw bytes of each PDF so we can render key slides
+    df = None         # Will hold the DataFrame of extracted results (once available)
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
+            # Ensure a temp folder exists
+            os.makedirs("temp", exist_ok=True)
+
             for pdf_file in uploaded_files:
                 # Show filename being processed
-                st.markdown(f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>', unsafe_allow_html=True)
+                st.markdown(
+                    f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>',
+                    unsafe_allow_html=True
+                )
 
                 # Save buffer temporarily to disk so extract_text can read it
                 bytes_data = pdf_file.read()
                 temp_path = os.path.join("temp", pdf_file.name)
-                os.makedirs("temp", exist_ok=True)
                 with open(temp_path, "wb") as f:
                     f.write(bytes_data)
 
@@ -143,6 +149,9 @@ with tab1:
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
+                    # Clean up temp file if still exists
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
                     continue
 
         if all_results:
@@ -155,16 +164,15 @@ with tab1:
             # Build a Pandas DataFrame of extracted results
             rows = []
             for rec in all_results:
-                # Some analyze.py versions return keys without spaces, some with spaces.
-                # We try both. Adjust based on your actual JSON keys.
+                # Support both keys with/without spaces in JSON
                 startup_name = rec.get("StartupName") or rec.get("Startup Name")
                 founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
-                founders = rec.get("Founders") or rec.get("Founders") or []
-                industry = rec.get("Industry")
-                niche = rec.get("Niche")
-                usp = rec.get("USP")
+                founders      = rec.get("Founders") or []
+                industry      = rec.get("Industry")
+                niche         = rec.get("Niche")
+                usp           = rec.get("USP")
                 funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
-                current_revenue = rec.get("CurrentRevenue") or rec.get("Current Revenue")
+                current_rev   = rec.get("CurrentRevenue") or rec.get("Current Revenue")
                 amount_raised = rec.get("AmountRaised") or rec.get("Amount Raised")
 
                 row = {
@@ -176,7 +184,7 @@ with tab1:
                     "Niche": niche,
                     "USP": usp,
                     "Funding Stage": funding_stage,
-                    "Current Revenue": current_revenue,
+                    "Current Revenue": current_rev,
                     "Amount Raised": amount_raised,
                 }
                 market = rec.get("Market") or {}
@@ -192,7 +200,7 @@ with tab1:
 
             # ----------------- Export Buttons -----------------
             json_str = json.dumps(all_results, indent=2)
-            csv_str = df.to_csv(index=False).encode("utf-8")
+            csv_str  = df.to_csv(index=False).encode("utf-8")
 
             col1, col2 = st.columns(2)
             with col1:
@@ -212,48 +220,70 @@ with tab1:
 
             st.markdown("---")
 
-    # ----------------- Key Slide Preview Picker -----------------
-    st.markdown("### 🔑 Key Slide Preview")
-    st.markdown(
-        "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
-    )
-    
-    selected_deck = st.selectbox(
-        "❓ Which Deck would you like to preview?",
-        options=df["Filename"].tolist()
-    )
-    
-    if selected_deck:
-        pdf_bytes = pdf_buffers[selected_deck]
-        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-    
-        # Define “key” page indices for demonstration.
-        key_slides = {
-            "Team Slide (index=2)": 2,
-            "Market Slide (index=6)": 6,
-            "Traction Slide (index=11)": 11
-        }
-    
-        cols = st.columns(len(key_slides))
-        for col, (label, page_index) in zip(cols, key_slides.items()):
-            if page_index < doc.page_count:
+
+    #
+    # ----------------- Key Slide Preview -----------------
+    #
+    # Only render the Key Slide Preview **after** df and pdf_buffers exist
+    if df is not None and not df.empty:
+        st.markdown("### 🔑 Key Slide Preview")
+        st.markdown(
+            "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
+        )
+
+        # Build selectbox options from df["Filename"]
+        options = df["Filename"].tolist()
+        selected_deck = st.selectbox(
+            "❓ Which Deck would you like to preview?",
+            options=options
+        )
+
+        if selected_deck:
+            pdf_bytes = pdf_buffers[selected_deck]
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+            # Dynamically find the first page whose text contains each keyword:
+            # “Team”, “Market”, “Traction”. We’ll store them in a dict:
+            key_slides = {}
+            for page_index in range(doc.page_count):
                 page = doc[page_index]
-                pix = page.get_pixmap(dpi=100)
-    
-                # ← Here is the fixed line:
-                img_bytes = pix.tobytes("png")
-    
-                col.image(
-                    img_bytes,
-                    caption=label,
-                    use_column_width=True
-                )
+                text = page.get_text().lower()
+
+                # If we haven’t found “Team” yet, and “team” appears on this page
+                if "team" in text and "team" not in key_slides:
+                    key_slides["Team Slide"] = page_index
+
+                # Similarly for “Market”
+                if "market" in text and "market" not in key_slides:
+                    key_slides["Market Slide"] = page_index
+
+                # And for “Traction” or “Revenue” as a proxy for traction pages
+                if ("traction" in text or "revenue" in text) and "Traction Slide" not in key_slides:
+                    key_slides["Traction Slide"] = page_index
+
+                # If we've found all three, break early
+                if len(key_slides) >= 3:
+                    break
+
+            # Now display whatever we managed to find
+            cols = st.columns(max(len(key_slides), 1))
+            if not key_slides:
+                st.info("⚠️ Could not automatically detect Team/Market/Traction pages in this deck.")
             else:
-                col.write(f"❌ {label} not found (out of range)")
-    
-        doc.close()
+                for col, (label, idx) in zip(cols, key_slides.items()):
+                    if idx < doc.page_count:
+                        page = doc[idx]
+                        pix = page.get_pixmap(dpi=100)
+                        img_bytes = pix.tobytes("png")  # render to PNG
+                        col.image(
+                            img_bytes,
+                            caption=f"{label} (page {idx+1})",
+                            use_column_width=True
+                        )
+                    else:
+                        col.write(f"❌ {label} not found (out of range)")
 
-
+            doc.close()
 
 #
 # ----------------- TAB 2: DASHBOARD VIEW -----------------
@@ -268,10 +298,11 @@ with tab2:
         rows2 = []
         for rec in all_results:
             startup_name = rec.get("StartupName") or rec.get("Startup Name")
-            founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
-            # Convert to int if possible
+            founding_year_raw = rec.get("FoundingYear") or rec.get("Founding Year")
+
+            # Try to convert to int, else None
             try:
-                founding_year = int(founding_year)
+                founding_year = int(founding_year_raw)
             except:
                 founding_year = None
 
@@ -297,7 +328,6 @@ with tab2:
             "Industry", options=all_industries, default=all_industries
         )
 
-        # Founding Year range
         # ⇢ Founding Year range (guard against missing or non‐numeric years)
         years = df2["Founding Year"].dropna().astype(int).tolist()
         if len(years) == 0:
@@ -306,7 +336,6 @@ with tab2:
         else:
             min_year = min(years)
             max_year = max(years)
-            # If min_year == max_year, use a single‐value slider
             if min_year == max_year:
                 st.sidebar.write(f"Founded in: {min_year}")
                 sel_year_range = (min_year, max_year)
@@ -318,7 +347,6 @@ with tab2:
                     value=(min_year, max_year),
                 )
 
-
         # Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
@@ -326,23 +354,24 @@ with tab2:
         )
 
         # ------- Apply Filters -------
+        # Start with Industry & Funding Stage masks
         mask = (
             (df2["Industry"].isin(sel_industries)) &
             (df2["Funding Stage"].isin(sel_stages))
         )
-        
-        # Only apply “Founding Year” filter if the slider gave us a real range
+
+        # Only apply the “Founding Year” portion if sel_year_range is valid
         if sel_year_range[0] is not None and sel_year_range[1] is not None:
             yr_min, yr_max = sel_year_range
             mask &= df2["Founding Year"].between(yr_min, yr_max)
-        
+
         filtered = df2[mask]
 
         st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
 
         # ------- Summary Charts -------
-        # Industry Breakdown
         if not filtered.empty:
+            # Industry Breakdown
             st.markdown("**Industry Breakdown**")
             industry_counts = filtered["Industry"].value_counts()
             st.bar_chart(industry_counts)
@@ -358,9 +387,9 @@ with tab2:
             stage_counts = filtered["Funding Stage"].value_counts()
             fig, ax = plt.subplots()
             stage_counts.plot.pie(
-                autopct="%.0f%%", 
+                autopct="%.0f%%",
                 ylabel="", 
-                legend=False, 
+                legend=False,
                 ax=ax
             )
             st.pyplot(fig)
@@ -370,3 +399,4 @@ with tab2:
         # ------- Display Filtered Table -------
         st.markdown("### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
+
