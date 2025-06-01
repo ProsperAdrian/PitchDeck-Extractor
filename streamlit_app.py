@@ -101,15 +101,15 @@ if uploaded_files:
         for rec in all_results:
             row = {
                 "Filename": rec.get("__filename"),
-                "Startup Name": rec.get("StartupName"),
-                "Founding Year": rec.get("FoundingYear"),
+                "Startup Name": rec.get("Startup Name"),
+                "Founding Year": rec.get("Founding Year"),
                 "Founders": "; ".join(rec.get("Founders") or []),
                 "Industry": rec.get("Industry"),
                 "Niche": rec.get("Niche"),
                 "USP": rec.get("USP"),
-                "Funding Stage": rec.get("FundingStage"),
-                "Current Revenue": rec.get("CurrentRevenue"),
-                "Amount Raised": rec.get("AmountRaised"),
+                "Funding Stage": rec.get("Funding Stage"),
+                "Current Revenue": rec.get("Current Revenue"),
+                "Amount Raised": rec.get("Amount Raised"),
             }
             market = rec.get("Market") or {}
             row["TAM"] = market.get("TAM")
