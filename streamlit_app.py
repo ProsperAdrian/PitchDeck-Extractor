@@ -2,20 +2,17 @@
 
 import streamlit as st
 import pandas as pd
-import os, json, io, warnings
+import os
+import io
+import json
 import fitz  # PyMuPDF, used to render PDF pages as images
-import matplotlib.pyplot as plt  # for the Dashboard pie chart
+from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
 
 # --- Pull OpenAI key from Streamlit secrets ---
 openai_api_key = st.secrets["openai"]["api_key"]
-
-# ----------------- SUPPRESS STREAMLIT DEPRECATION WARNINGS -----------------
-# We switch from `use_column_width=` to `use_container_width=` for images, so
-# the warnings should go away. Just in case, silence other minor warnings:
-warnings.filterwarnings("ignore", category=UserWarning)
 
 # ----------------- UI SETUP -----------------
 st.set_page_config(
@@ -27,6 +24,8 @@ def set_custom_styles():
     custom_css = f"""
     <style>
     .stApp {{
+        /* (Optional) You can embed a local base64 image, e.g. YOUR_BASE64_IMAGE_HERE */
+        /* background-image: url("data:image/png;base64,YOUR_BASE64_IMAGE_HERE"); */
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -105,14 +104,66 @@ Upload one or more pitch‐deck PDFs. This tool leverages AI & predefined heuris
 # Create two tabs: Library View and Dashboard View
 tab1, tab2 = st.tabs(["1️⃣ Library View", "2️⃣ Dashboard View"])
 
-#
+# ----------------------- Helper: Identify Key Slide Pages via ChatGPT -----------------------
+def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
+    """
+    Given a list of page texts (0-indexed), ask ChatGPT to tell us:
+      - which page is the Team slide
+      - which page is the Market slide
+      - which page is the Traction slide
+
+    Returns a dict like: {"TeamPage": 7, "MarketPage": 5, "TractionPage": 15}
+    (all 1-indexed). If GPT cannot find one, returns null for that key.
+    """
+    prompt_lines = [
+        "I’m going to give you the text from each slide of a pitch deck, one by one.  "
+        "Please tell me exactly which page number (1-indexed) is the Team slide, "
+        "which page number is the Market slide, and which page number is the Traction slide.  "
+        "Format your answer exactly as JSON with keys \"TeamPage\", \"MarketPage\", \"TractionPage\".  "
+        "If you can’t find any of them, put null for that field.\n"
+    ]
+
+    # Include a snippet (first ~200 chars) for each page
+    for i, full_text in enumerate(page_texts):
+        snippet = full_text.strip().replace("\n", " ")[:200]
+        prompt_lines.append(f"---\nPage {i+1}:\n{snippet}\n")
+
+    prompt_lines.append(
+        "\nAnswer in JSON, for example:\n"
+        "{\n"
+        '  "TeamPage": 7,\n'
+        '  "MarketPage": 5,\n'
+        '  "TractionPage": 15\n'
+        "}\n"
+    )
+
+    prompt = "\n".join(prompt_lines)
+
+    client = OpenAI(api_key=api_key)
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.0,
+        max_tokens=200
+    )
+    content = response.choices[0].message.content.strip()
+
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        start = content.find("{")
+        end = content.rfind("}") + 1
+        if start != -1 and end != -1:
+            return json.loads(content[start:end])
+        else:
+            return {"TeamPage": None, "MarketPage": None, "TractionPage": None}
+
 # ----------------- TAB 1: LIBRARY VIEW -----------------
-#
 with tab1:
     # Narrow the uploader to center
     st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
-        "Drag & drop PDF(s) here (or click to browse)", 
+        "Drag & drop PDF(s) here (or click to browse)",
         type=["pdf"],
         accept_multiple_files=True,
     )
@@ -124,29 +175,23 @@ with tab1:
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
             for pdf_file in uploaded_files:
-                # Show filename being processed
                 st.markdown(f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>', unsafe_allow_html=True)
 
                 # Save buffer temporarily to disk so extract_text can read it
                 bytes_data = pdf_file.read()
-                temp_folder = "temp"
-                os.makedirs(temp_folder, exist_ok=True)
-                temp_path = os.path.join(temp_folder, pdf_file.name)
+                temp_dir = "temp"
+                os.makedirs(temp_dir, exist_ok=True)
+                temp_path = os.path.join(temp_dir, pdf_file.name)
                 with open(temp_path, "wb") as f:
                     f.write(bytes_data)
 
                 try:
-                    # 1) Extract all slide text
                     deck_text = extract_text_from_pdf(temp_path)
                     os.remove(temp_path)
-
-                    # 2) Build and run our few‐shot prompt
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
                     result["__filename"] = pdf_file.name
                     all_results.append(result)
-
-                    # 3) Store the raw PDF bytes for “Key Slide Preview”
                     pdf_buffers[pdf_file.name] = bytes_data
 
                 except Exception as e:
@@ -163,16 +208,15 @@ with tab1:
             # Build a Pandas DataFrame of extracted results
             rows = []
             for rec in all_results:
-                # The JSON keys might be either "StartupName" or "Startup Name" depending on your analyze.py
-                startup_name = rec.get("StartupName") or rec.get("Startup Name")
-                founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
-                founders = rec.get("Founders") or []
-                industry = rec.get("Industry")
-                niche = rec.get("Niche")
-                usp = rec.get("USP")
-                funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
-                current_revenue = rec.get("CurrentRevenue") or rec.get("Current Revenue")
-                amount_raised = rec.get("AmountRaised") or rec.get("Amount Raised")
+                startup_name   = rec.get("StartupName") or rec.get("Startup Name")
+                founding_year  = rec.get("FoundingYear") or rec.get("Founding Year")
+                founders       = rec.get("Founders") or []
+                industry       = rec.get("Industry")
+                niche          = rec.get("Niche")
+                usp            = rec.get("USP")
+                funding_stage  = rec.get("FundingStage") or rec.get("Funding Stage")
+                current_revenue= rec.get("CurrentRevenue") or rec.get("Current Revenue")
+                amount_raised  = rec.get("AmountRaised") or rec.get("Amount Raised")
 
                 row = {
                     "Filename": rec.get("__filename"),
@@ -199,19 +243,19 @@ with tab1:
 
             # ----------------- Export Buttons -----------------
             json_str = json.dumps(all_results, indent=2)
-            csv_str = df.to_csv(index=False).encode("utf-8")
+            csv_str  = df.to_csv(index=False).encode("utf-8")
 
             col1, col2 = st.columns(2)
             with col1:
                 st.download_button(
-                    label="📥 Export as JSON", 
-                    data=json_str, 
+                    label="📥 Export as JSON",
+                    data=json_str,
                     file_name="All_decks.json",
                     mime="application/json"
                 )
             with col2:
                 st.download_button(
-                    label="📊 Export as CSV", 
+                    label="📊 Export as CSV",
                     data=csv_str,
                     file_name="All_decks.csv",
                     mime="text/csv"
@@ -219,15 +263,10 @@ with tab1:
 
             st.markdown("---")
 
-            #
-            # ----------------- Key Slide Preview Picker -----------------
-            #
+            # ----------------- Key Slide Preview Picker (GPT-driven) -----------------
             st.markdown("### 🔑 Key Slide Preview")
-            st.markdown(
-                "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
-            )
+            st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
 
-            # Because df and pdf_buffers exist, we can safely build the selectbox
             selected_deck = st.selectbox(
                 "❓ Which Deck would you like to preview?",
                 options=df["Filename"].tolist()
@@ -237,75 +276,68 @@ with tab1:
                 pdf_bytes = pdf_buffers[selected_deck]
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-                # 1) Scan every page’s extracted text to find “TEAM”, “MARKET”, “TRACTION”
+                # 1) Extract full text from each page
                 page_texts = []
                 for pg in doc:
-                    text = pg.get_text().upper()  # uppercase for case‐insensitive search
+                    text = pg.get_text()
                     page_texts.append(text)
 
-                def find_first_index(keyword):
-                    keyword = keyword.upper()
-                    for idx, content in enumerate(page_texts):
-                        if keyword in content:
-                            return idx
-                    return None
+                # 2) Ask ChatGPT which pages correspond to Team/Market/Traction
+                key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
 
-                team_idx = find_first_index("TEAM")
-                market_idx = find_first_index("MARKET")
-                traction_idx = find_first_index("TRACTION")
+                # 3) Convert GPT’s 1-indexed answers to 0-indexed
+                raw_team   = key_info.get("TeamPage")
+                raw_market = key_info.get("MarketPage")
+                raw_traction = key_info.get("TractionPage")
 
+                team_idx    = (int(raw_team) - 1) if raw_team else None
+                market_idx  = (int(raw_market) - 1) if raw_market else None
+                traction_idx= (int(raw_traction) - 1) if raw_traction else None
+
+                # 4) Build a list of exactly those slides GPT pointed to
                 key_slides = []
-                if team_idx is not None:
-                    key_slides.append(("Team Slide (page {})".format(team_idx + 1), team_idx))
-                if market_idx is not None:
-                    key_slides.append(("Market Slide (page {})".format(market_idx + 1), market_idx))
-                if traction_idx is not None:
-                    key_slides.append(("Traction Slide (page {})".format(traction_idx + 1), traction_idx))
+                if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
+                    key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
+                if isinstance(market_idx, int) and 0 <= market_idx < doc.page_count:
+                    key_slides.append((f"Market Slide (page {market_idx+1})", market_idx))
+                if isinstance(traction_idx, int) and 0 <= traction_idx < doc.page_count:
+                    key_slides.append((f"Traction Slide (page {traction_idx+1})", traction_idx))
 
-                # If none of those were found, show a message
+                # 5) If GPT gave us nothing useful, warn; otherwise, render images
                 if not key_slides:
-                    st.warning("⚠️ Could not find any “Team,” “Market,” or “Traction” slides in this deck.")
+                    st.warning("⚠️ ChatGPT did not locate Team/Market/Traction slides in this deck.")
                 else:
                     cols = st.columns(len(key_slides))
                     for col, (label, page_index) in zip(cols, key_slides):
-                        if page_index < doc.page_count:
-                            page = doc[page_index]
-                            pix = page.get_pixmap(dpi=100)
-                            img_bytes = pix.tobytes("png")  # use_container_width → True
-                            col.image(
-                                img_bytes,
-                                caption=label,
-                                use_container_width=True
-                            )
-                        else:
-                            col.write(f"❌ {label} not found (out of range)")
+                        page = doc[page_index]
+                        pix = page.get_pixmap(dpi=100)
+                        img_bytes = pix.tobytes("png")
+                        col.image(
+                            img_bytes,
+                            caption=label,
+                            use_container_width=True
+                        )
+
                 doc.close()
 
-    # If no files have been uploaded yet, we skip all of the above and show nothing.
+    # If no decks uploaded, skip this entire block.
 
-
-#
 # ----------------- TAB 2: DASHBOARD VIEW -----------------
-#
 with tab2:
     st.markdown("## 📊 Dashboard & Interactive Filtering")
 
-    # We only proceed if “df” (the DataFrame) exists and has at least one row
-    if "df" not in locals() or df.empty:
+    if not all_results:
         st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
     else:
-        # Re‐construct a smaller DataFrame for filtering/charts
         rows2 = []
         for rec in all_results:
-            startup_name = rec.get("StartupName") or rec.get("Startup Name")
+            startup_name  = rec.get("StartupName") or rec.get("Startup Name")
             founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
-            # Convert to int if possible
             try:
                 founding_year = int(founding_year)
             except:
                 founding_year = None
-
-            industry = rec.get("Industry")
+            industry      = rec.get("Industry")
             funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
 
             rows2.append({
@@ -318,83 +350,58 @@ with tab2:
 
         df2 = pd.DataFrame(rows2)
 
-        # ------- Sidebar Filters -------
+        # Sidebar Filters
         st.sidebar.header("🔎 Filters")
 
-        # Industry filter
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect(
             "Industry", options=all_industries, default=all_industries
         )
 
-        # Founding Year range
-        non_na_years = df2["Founding Year"].dropna()
-        if not non_na_years.empty:
-            min_year = int(non_na_years.min())
-            max_year = int(non_na_years.max())
-        else:
-            min_year = None
-            max_year = None
+        min_year = int(df2["Founding Year"].dropna().min()) if not df2["Founding Year"].dropna().empty else 0
+        max_year = int(df2["Founding Year"].dropna().max()) if not df2["Founding Year"].dropna().empty else 0
+        sel_year_range = st.sidebar.slider(
+            "Founding Year Range",
+            min_year,
+            max_year,
+            (min_year, max_year)
+        )
 
-        if min_year is not None and max_year is not None:
-            sel_year_range = st.sidebar.slider(
-                "Founding Year Range", 
-                min_year, 
-                max_year, 
-                (min_year, max_year)
-            )
-        else:
-            sel_year_range = (None, None)
-
-        # Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
             "Funding Stage", options=all_stages, default=all_stages
         )
 
-        # ------- Apply Filters -------
-        if min_year is not None and max_year is not None:
-            filtered = df2[
-                (df2["Industry"].isin(sel_industries)) &
-                (df2["Funding Stage"].isin(sel_stages)) &
-                (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
-            ]
-        else:
-            # If no numeric founding years, just filter by industry & funding stage
-            filtered = df2[
-                (df2["Industry"].isin(sel_industries)) &
-                (df2["Funding Stage"].isin(sel_stages))
-            ]
+        filtered = df2[
+            (df2["Industry"].isin(sel_industries)) &
+            (df2["Funding Stage"].isin(sel_stages)) &
+            (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
+        ]
 
         st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
 
-        # ------- Summary Charts -------
         if not filtered.empty:
-            # Industry Breakdown
             st.markdown("**Industry Breakdown**")
             industry_counts = filtered["Industry"].value_counts()
             st.bar_chart(industry_counts)
 
-            # Founding Year Distribution
             st.markdown("**Founding Year Distribution**")
-            if "Founding Year" in filtered.columns and filtered["Founding Year"].notna().any():
-                year_counts = filtered["Founding Year"].value_counts().sort_index()
-                st.bar_chart(year_counts)
+            year_counts = filtered["Founding Year"].value_counts().sort_index()
+            st.bar_chart(year_counts)
 
-            # Funding Stage Pie Chart (via Matplotlib)
+            import matplotlib.pyplot as plt
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts()
-            fig, ax = plt.subplots(figsize=(4, 4))
+            fig, ax = plt.subplots()
             stage_counts.plot.pie(
-                autopct="%.0f%%", 
-                ylabel="", 
-                legend=False, 
+                autopct="%.0f%%",
+                ylabel="",
+                legend=False,
                 ax=ax
             )
             st.pyplot(fig)
 
         st.markdown("---")
 
-        # ------- Display Filtered Table -------
         st.markdown("### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
