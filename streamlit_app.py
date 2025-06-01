@@ -153,7 +153,8 @@ if uploaded_files:
         df = pd.DataFrame(rows)
 
         st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
-        st.dataframe(df, use_container_width=True)
+        st.markdown('<div class="extracted-title">📑 Extracted Results</div>', unsafe_allow_html=True)
+st.dataframe(df, use_container_width=True)
 
         # ----------------- Export Options -----------------
         json_str = json.dumps(all_results, indent=2)
