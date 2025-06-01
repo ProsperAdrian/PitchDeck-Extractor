@@ -146,18 +146,19 @@ def build_few_shot_prompt(deck_slide_text):
     """
     return PROMPT_PREFIX + deck_slide_text + "\nJSON answer:"
 
-def call_chatgpt(prompt, model="gpt-3.5-turbo"):
+def call_chatgpt(prompt, api_key, model="gpt-3.5-turbo"):
+    client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.0,
         max_tokens=800
     )
-    # Access `.content` instead of indexing as a dict
+
     content = response.choices[0].message.content.strip()
 
     # Parse out the JSON
-    try:
+try:
         return json.loads(content)
     except json.JSONDecodeError:
         start = content.find("{")
