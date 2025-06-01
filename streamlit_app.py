@@ -92,7 +92,7 @@ set_custom_styles()
 st.markdown('<h1>📊 Pitch Deck Analysis</h1>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch-deck PDFs. This tool leverages AI & predefined heuristics to extract:
-**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, **Amount Raised**.
+**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
 """)
 
 # ----------------- File Upload -----------------
@@ -157,7 +157,7 @@ if uploaded_files:
 
         df = pd.DataFrame(rows)
 
-        st.markdown('<div class="extracted-title">📑 Extracted Results</div>', unsafe_allow_html=True)
+        st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True)
 
         # ----------------- Export Options -----------------
