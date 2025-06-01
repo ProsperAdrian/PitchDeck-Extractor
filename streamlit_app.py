@@ -351,7 +351,7 @@ with tab1:
 # ----------------- TAB 2: DASHBOARD VIEW -----------------
 #
 with tab2:
-    st.markdown("## 📊 Dashboard")
+    st.markdown("#### Dashboard")
 
     if not all_results:
         st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
@@ -429,7 +429,7 @@ with tab2:
 
         filtered = df2[mask]
 
-        st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
+        st.markdown(f"##### 🔍 {filtered.shape[0]} startups match your filters")
 
         # ------- Summary Charts -------
         if not filtered.empty:
@@ -451,5 +451,5 @@ with tab2:
         st.markdown("---")
 
         # ------- Display Filtered Table -------
-        st.markdown("### 💾 Filtered Results Table")
+        st.markdown("#### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
