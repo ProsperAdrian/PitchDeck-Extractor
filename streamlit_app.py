@@ -298,7 +298,7 @@ with tab1:
             st.markdown("---")
 
             # 8c) KEY SLIDE PREVIEW: CHATGPT‐DRIVEN
-            st.markdown("#### Key Slide Preview")
+            st.markdown("##### Key Slide Preview")
             st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
 
             selected_deck = st.selectbox(
@@ -429,7 +429,7 @@ with tab2:
 
         filtered = df2[mask]
 
-        st.markdown(f"##### 🔍 {filtered.shape[0]} startups match your filters")
+        st.markdown(f"###### 🔍 {filtered.shape[0]} startups match your filters")
 
         # ------- Summary Charts -------
         if not filtered.empty:
