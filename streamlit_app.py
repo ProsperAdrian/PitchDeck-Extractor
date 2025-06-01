@@ -59,13 +59,18 @@ def set_custom_styles():
         background-color: #265DAB;
         transform: scale(1.02);
     }}
+
+    /* ✅ Center the uploader and set narrow width */
     .narrow-uploader {{
-    max-width: 500px;
-    margin-left: auto;
-    margin-right: auto;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
     }}
-    /* Hide uploaded file display */
-    div[data-testid="stFileUploader"] > div > div:nth-child(2) {{
+
+    /* ✅ Hide uploaded file display (name, size, icon, X button) */
+    div[data-testid="stFileUploader"] > div > div:nth-child(2),
+    div[data-testid="stFileUploader"] ul,
+    div[data-testid="stFileUploader"] li {{
         display: none !important;
     }}
     </style>
@@ -83,12 +88,15 @@ Upload one or more pitch-deck PDFs. This tool leverages AI & predefined heuristi
 
 # ----------------- File Upload -----------------
 st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
+
 uploaded_files = st.file_uploader(
     "Drag & drop PDF(s) here (or click to browse)", 
     type=["pdf"],
     accept_multiple_files=True,
 )
+
 st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ----------------- Processing -----------------
 if uploaded_files:
