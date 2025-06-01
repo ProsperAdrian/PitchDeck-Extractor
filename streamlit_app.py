@@ -2,7 +2,7 @@
 
 import streamlit as st
 import pandas as pd
-import os, json, io
+import os, json
 import fitz  # PyMuPDF, used to render PDF pages as images
 
 from extract_text import extract_text_from_pdf
@@ -116,11 +116,11 @@ with tab1:
 
     all_results = []
     pdf_buffers = {}  # Keep raw bytes of each PDF so we can render key slides
-    df = None         # Will hold the DataFrame of extracted results (once available)
+    df = None         # DataFrame of extracted results (once available)
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
-            # Ensure a temp folder exists
+            # Create temp folder if not exists
             os.makedirs("temp", exist_ok=True)
 
             for pdf_file in uploaded_files:
@@ -137,19 +137,22 @@ with tab1:
                     f.write(bytes_data)
 
                 try:
+                    # 1) Extract full text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
                     os.remove(temp_path)
+
+                    # 2) Build few‐shot prompt and call OpenAI
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
                     result["__filename"] = pdf_file.name
                     all_results.append(result)
 
-                    # Keep raw bytes so we can preview slides later
+                    # 3) Keep raw bytes so we can preview key slides later
                     pdf_buffers[pdf_file.name] = bytes_data
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
-                    # Clean up temp file if still exists
+                    # Clean up if temp still exists
                     if os.path.exists(temp_path):
                         os.remove(temp_path)
                     continue
@@ -164,8 +167,8 @@ with tab1:
             # Build a Pandas DataFrame of extracted results
             rows = []
             for rec in all_results:
-                # Support both keys with/without spaces in JSON
-                startup_name = rec.get("StartupName") or rec.get("Startup Name")
+                # Support both “key” and “key with spaces”
+                startup_name  = rec.get("StartupName") or rec.get("Startup Name")
                 founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
                 founders      = rec.get("Founders") or []
                 industry      = rec.get("Industry")
@@ -220,11 +223,9 @@ with tab1:
 
             st.markdown("---")
 
-
     #
     # ----------------- Key Slide Preview -----------------
     #
-    # Only render the Key Slide Preview **after** df and pdf_buffers exist
     if df is not None and not df.empty:
         st.markdown("### 🔑 Key Slide Preview")
         st.markdown(
@@ -243,38 +244,50 @@ with tab1:
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
             # Dynamically find the first page whose text contains each keyword:
-            # “Team”, “Market”, “Traction”. We’ll store them in a dict:
+            # • “Team” (or “Founder”)
+            # • “TAM” / “SAM” / “SOM” / “Market Size” / “Market Opportunity”
+            # • “Traction” or “Gross Revenues” or “Revenue”
             key_slides = {}
             for page_index in range(doc.page_count):
                 page = doc[page_index]
                 text = page.get_text().lower()
 
-                # If we haven’t found “Team” yet, and “team” appears on this page
-                if "team" in text and "team" not in key_slides:
+                # 1) Team Slide detection: look for “team” or “founder”
+                if ("team" in text or "founder" in text) and "Team Slide" not in key_slides:
                     key_slides["Team Slide"] = page_index
 
-                # Similarly for “Market”
-                if "market" in text and "market" not in key_slides:
+                # 2) Market Slide detection: look explicitly for “tam” / “market size” / “market opp”
+                #    or “sam” / “som”
+                if (
+                    ("tam" in text) or
+                    ("market size" in text) or
+                    ("market opportunity" in text) or
+                    ("sam" in text) or
+                    ("som" in text)
+                ) and "Market Slide" not in key_slides:
                     key_slides["Market Slide"] = page_index
 
-                # And for “Traction” or “Revenue” as a proxy for traction pages
-                if ("traction" in text or "revenue" in text) and "Traction Slide" not in key_slides:
+                # 3) Traction Slide detection: look for “traction” or “gross revenue” or “revenue”
+                if (
+                    ("traction" in text) or
+                    ("gross revenue" in text) or
+                    ("revenue" in text)
+                ) and "Traction Slide" not in key_slides:
                     key_slides["Traction Slide"] = page_index
 
-                # If we've found all three, break early
+                # If we’ve found all three, break early
                 if len(key_slides) >= 3:
                     break
 
-            # Now display whatever we managed to find
             cols = st.columns(max(len(key_slides), 1))
             if not key_slides:
-                st.info("⚠️ Could not automatically detect Team/Market/Traction pages in this deck.")
+                st.info("⚠️ Could not automatically detect Team / Market / Traction pages in this deck.")
             else:
                 for col, (label, idx) in zip(cols, key_slides.items()):
                     if idx < doc.page_count:
                         page = doc[idx]
                         pix = page.get_pixmap(dpi=100)
-                        img_bytes = pix.tobytes("png")  # render to PNG
+                        img_bytes = pix.tobytes("png")
                         col.image(
                             img_bytes,
                             caption=f"{label} (page {idx+1})",
@@ -300,13 +313,13 @@ with tab2:
             startup_name = rec.get("StartupName") or rec.get("Startup Name")
             founding_year_raw = rec.get("FoundingYear") or rec.get("Founding Year")
 
-            # Try to convert to int, else None
+            # Try to convert to int; otherwise None
             try:
                 founding_year = int(founding_year_raw)
             except:
                 founding_year = None
 
-            industry = rec.get("Industry")
+            industry      = rec.get("Industry")
             funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
 
             rows2.append({
@@ -328,7 +341,7 @@ with tab2:
             "Industry", options=all_industries, default=all_industries
         )
 
-        # ⇢ Founding Year range (guard against missing or non‐numeric years)
+        # ⇢ Founding Year range (guard against non‐numeric or missing)
         years = df2["Founding Year"].dropna().astype(int).tolist()
         if len(years) == 0:
             st.sidebar.info("Founding Year: no numeric data to filter.")
@@ -354,13 +367,11 @@ with tab2:
         )
 
         # ------- Apply Filters -------
-        # Start with Industry & Funding Stage masks
         mask = (
             (df2["Industry"].isin(sel_industries)) &
             (df2["Funding Stage"].isin(sel_stages))
         )
 
-        # Only apply the “Founding Year” portion if sel_year_range is valid
         if sel_year_range[0] is not None and sel_year_range[1] is not None:
             yr_min, yr_max = sel_year_range
             mask &= df2["Founding Year"].between(yr_min, yr_max)
@@ -371,32 +382,23 @@ with tab2:
 
         # ------- Summary Charts -------
         if not filtered.empty:
-            # Industry Breakdown
+            # 1) Industry Breakdown (bar chart)
             st.markdown("**Industry Breakdown**")
             industry_counts = filtered["Industry"].value_counts()
             st.bar_chart(industry_counts)
 
-            # Founding Year Distribution
+            # 2) Founding Year Distribution (bar chart)
             st.markdown("**Founding Year Distribution**")
             year_counts = filtered["Founding Year"].value_counts().sort_index()
             st.bar_chart(year_counts)
 
-            # Funding Stage Pie Chart (via Matplotlib)
-            import matplotlib.pyplot as plt
+            # 3) Funding Stage Breakdown (bar chart)
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts()
-            fig, ax = plt.subplots()
-            stage_counts.plot.pie(
-                autopct="%.0f%%",
-                ylabel="", 
-                legend=False,
-                ax=ax
-            )
-            st.pyplot(fig)
+            st.bar_chart(stage_counts)
 
         st.markdown("---")
 
         # ------- Display Filtered Table -------
         st.markdown("### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
-
