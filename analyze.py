@@ -169,7 +169,7 @@ if __name__ == "__main__":
             continue
 
         pdf_path = os.path.join(INPUT_FOLDER, fname)
-        print(f"Processing {fname}…")
+        # print(f"Processing {fname}…")
 
         # 1) Extract slide text
         deck_text = extract_text_from_pdf(pdf_path)
