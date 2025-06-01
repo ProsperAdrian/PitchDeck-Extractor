@@ -104,10 +104,6 @@ if uploaded_files:
         all_results = []
 
         for pdf_file in uploaded_files:
-            st.markdown(
-                f'<div class="processing-msg">Processing: <code>{pdf_file.name}</code></div>',
-                unsafe_allow_html=True
-            )
             bytes_data = pdf_file.read()
 
             with open(f"temp_{pdf_file.name}", "wb") as f:
