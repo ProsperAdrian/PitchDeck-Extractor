@@ -212,46 +212,47 @@ with tab1:
 
             st.markdown("---")
 
-# ----------------- Key Slide Preview Picker -----------------
-st.markdown("### 🔑 Key Slide Preview")
-st.markdown(
-    "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
-)
+    # ----------------- Key Slide Preview Picker -----------------
+    st.markdown("### 🔑 Key Slide Preview")
+    st.markdown(
+        "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
+    )
+    
+    selected_deck = st.selectbox(
+        "❓ Which Deck would you like to preview?",
+        options=df["Filename"].tolist()
+    )
+    
+    if selected_deck:
+        pdf_bytes = pdf_buffers[selected_deck]
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+    
+        # Define “key” page indices for demonstration.
+        key_slides = {
+            "Team Slide (index=2)": 2,
+            "Market Slide (index=6)": 6,
+            "Traction Slide (index=11)": 11
+        }
+    
+        cols = st.columns(len(key_slides))
+        for col, (label, page_index) in zip(cols, key_slides.items()):
+            if page_index < doc.page_count:
+                page = doc[page_index]
+                pix = page.get_pixmap(dpi=100)
+    
+                # ← Here is the fixed line:
+                img_bytes = pix.tobytes("png")
+    
+                col.image(
+                    img_bytes,
+                    caption=label,
+                    use_column_width=True
+                )
+            else:
+                col.write(f"❌ {label} not found (out of range)")
+    
+        doc.close()
 
-selected_deck = st.selectbox(
-    "❓ Which Deck would you like to preview?",
-    options=df["Filename"].tolist()
-)
-
-if selected_deck:
-    pdf_bytes = pdf_buffers[selected_deck]
-    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-
-    # Define “key” page indices for demonstration.
-    key_slides = {
-        "Team Slide (index=2)": 2,
-        "Market Slide (index=6)": 6,
-        "Traction Slide (index=11)": 11
-    }
-
-    cols = st.columns(len(key_slides))
-    for col, (label, page_index) in zip(cols, key_slides.items()):
-        if page_index < doc.page_count:
-            page = doc[page_index]
-            pix = page.get_pixmap(dpi=100)
-
-            # Use pix.tobytes("png") to avoid the PIL save error
-            img_bytes = pix.tobytes("png")
-
-            col.image(
-                img_bytes,
-                caption=label,
-                use_column_width=True
-            )
-        else:
-            col.write(f"❌ {label} not found (out of range)")
-
-    doc.close()
 
 
 #
