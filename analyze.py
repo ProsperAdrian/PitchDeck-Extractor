@@ -37,16 +37,16 @@ Gross Revenues in 2020: $3,100
 """
 
 EXAMPLE_1_JSON = {
-  "StartupName": "Yabscore",
-  "FoundingYear": "2019",
+  "Startup Name": "Yabscore",
+  "Founding Year": "2019",
   "Founders": ["IK Ezekwelu", "Dapo Arowa"],
   "Industry": "Sporttech",
   "Niche": "Mobile sports betting",
   "USP": "Yabscore is the first fully mobile sports-betting platform tailored to Nigerian football fans, offering in-play wagering and live performance stats.",
-  "FundingStage": None,
-  "CurrentRevenue": "$3,100",
+  "Funding Stage": None,
+  "Current Revenue": "$3,100",
   "Market": { "TAM": "$95 Billion", "SAM": "$2.2 Billion", "SOM": "$193 Million" },
-  "AmountRaised": "0"
+  "Amount Raised": "0"
 }
 
 EXAMPLE_2_TEXT = """
@@ -88,16 +88,16 @@ Traction:
 """
 
 EXAMPLE_2_JSON = {
-  "StartupName": "Quidax",
-  "FoundingYear": "2018",
+  "Startup Name": "Quidax",
+  "Founding Year": "2018",
   "Founders": ["Buchi Okoro", "Uzo Awili", "Morris Ebieroma"],
   "Industry": "FinTech",
   "Niche": "Cryptocurrency exchange",
   "USP": "All-in-one platform with seamless fiat on/off ramps and a single API enabling African users and businesses to access 1,200+ crypto pairs securely",
-  "FundingStage": "null",
-  "CurrentRevenue": "$10m ARR",
+  "Funding Stage": "null",
+  "Current Revenue": "$10m ARR",
   "Market": { "TAM": "null", "SAM": "null", "SOM": "null" },
-  "AmountRaised": "0"
+  "Amount Raised": "0"
 }
 
 
@@ -105,16 +105,16 @@ EXAMPLE_2_JSON = {
 PROMPT_PREFIX = """
 You are an expert at extracting structured data from investor pitch decks. For each deck, I will present the slide text. Return exactly one JSON object with these ten fields:
 {
-  "StartupName": string or null,  # what is the likely startup name?
-  "FoundingYear": string or null, # If no explicit “Founded in YYYY” appears, Scan all content for founding-year clues, including: • timeline or roadmap dates, • traction graphs captions, • team-bio phrasing, • funding-history dates. Determine the most probable calendar year in which the company was founded. If multiple plausible years appear, choose the earliest one that has at least one direct or indirect supporting signal.
+  "Startup Name": string or null,  # what is the likely startup name?
+  "Founding Year": string or null, # If no explicit “Founded in YYYY” appears, Scan all content for founding-year clues, including: • timeline or roadmap dates, • traction graphs captions, • team-bio phrasing, • funding-history dates. Determine the most probable calendar year in which the company was founded. If multiple plausible years appear, choose the earliest one that has at least one direct or indirect supporting signal.
   "Founders": [string, ...] or null,
   "Industry": string or null,       # one of: Fintech, Insurtech, Regtech, Healthtech, Medtech, Biotech, Pharmatech, Femtech, Eldertech, Proptech, Contech, Agtech, Foodtech, RestaurantTech, ClimateTech, CleanTech, EnergyTech, Greentech, Edtech, HRtech, Worktech, Martech, Adtech, RetailTech, Ecommerce, Marketplace, MobilityTech, Autotech, TransportTech, LogisticsTech, SupplyChainTech, TravelTech, SpaceTech, AerospaceTech, DefenceTech, SportTech, GamingTech, eSportsTech, MediaTech, StreamingTech, MusicTech, CreatorEconomyTech, SocialTech, Cybersecurity, AI, MachineLearning, BigData, AnalyticsTech, CloudTech, SaaS, DevOps, IoT, Robotics, HardwareTech, WearablesTech, 3DPrinting, AR/VR/XR, Metaverse, Web3, Blockchain, Crypto, NFT, QuantumTech, LegalTech, Govtech, CivicTech, NonprofitTech, ProductivityTech, CollaborationTech, PetTech, ElderCareTech etc.
   "Niche": string or null,          # free-text description e.g. “crypto exchange”, “mobile betting”, “AI tutoring”
   "USP": string or null,            # a single sentence from the deck that states the unique selling proposition
-  "FundingStage": string or null,   # If no explicit round is mentioned, Scan the deck for the following signals: • capital sought, • traction metrics (users, revenue, growth), • product maturity, • team size & seniority, • prior funding, • planned use of funds, • target investors, • implied valuation. Using these signals and standard VC heuristics, decide the most probable funding round (Pre-seed, Seed, Series A, Series B, Series C or later).
-  "CurrentRevenue": string or null,
+  "Funding Stage": string or null,   # If no explicit round is mentioned, Scan the deck for the following signals: • capital sought, • traction metrics (users, revenue, growth), • product maturity, • team size & seniority, • prior funding, • planned use of funds, • target investors, • implied valuation. Using these signals and standard VC heuristics, decide the most probable funding round (Pre-seed, Seed, Series A, Series B, Series C or later).
+  "Current Revenue": string or null,
   "Market": { "TAM": string or null, "SAM": string or null, "SOM": string or null } or null,
-  "AmountRaised": string or null,  # what is the likely cummulative amount the startup has raised from inception?
+  "Amount Raised": string or null,  # what is the likely cummulative amount the startup has raised from inception?
 }
 If any field is not present, set it to null.
 
@@ -188,8 +188,8 @@ if __name__ == "__main__":
                 # 4) Post-process & write output JSON
         # Ensure all ten fields exist; if missing, set to null
         expected_keys = [
-            "StartupName", "FoundingYear", "Founders", "Industry", 
-            "Niche", "USP", "FundingStage", "CurrentRevenue", "Market","AmountRaised"
+            "Startup Name", "Founding Year", "Founders", "Industry", 
+            "Niche", "USP", "Funding Stage", "Current Revenue", "Market","Amount Raised"
         ]
         normalized = {}
         for key in expected_keys:
