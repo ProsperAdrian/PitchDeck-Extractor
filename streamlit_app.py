@@ -352,21 +352,25 @@ with tab1:
 # ─────────────────────────────────────────────────────────────────────────────
 # 9) TAB 2: DASHBOARD & INTERACTIVE FILTERING
 # ─────────────────────────────────────────────────────────────────────────────
+# ----------------- TAB 2: DASHBOARD VIEW -----------------
+#
 with tab2:
     st.markdown("## 📊 Dashboard & Interactive Filtering")
 
     if not all_results:
         st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
     else:
-        # Build a smaller DataFrame specifically for filtering and charts
+        # Reconstruct a small DataFrame for filtering & charts
         rows2 = []
         for rec in all_results:
-            startup_name  = rec.get("StartupName") or rec.get("Startup Name")
-            founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
+            startup_name = rec.get("StartupName") or rec.get("Startup Name")
+            fy_raw       = rec.get("FoundingYear") or rec.get("Founding Year")
+
             try:
-                founding_year = int(founding_year)
+                founding_year = int(fy_raw)
             except:
                 founding_year = None
+
             industry      = rec.get("Industry")
             funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
 
@@ -380,58 +384,76 @@ with tab2:
 
         df2 = pd.DataFrame(rows2)
 
-        # Sidebar Filters
+        # ------- Sidebar Filters -------
         st.sidebar.header("🔎 Filters")
+
+        # Industry filter
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
-        sel_industries = st.sidebar.multiselect("Industry", options=all_industries, default=all_industries)
+        sel_industries = st.sidebar.multiselect(
+            "Industry",
+            options=all_industries,
+            default=all_industries
+        )
 
-        valid_years = df2["Founding Year"].dropna().astype(int)
-        if not valid_years.empty:
-            min_year = int(valid_years.min())
-            max_year = int(valid_years.max())
-            sel_year_range = st.sidebar.slider(
-                "Founding Year Range",
-                min_value=min_year,
-                max_value=max_year,
-                value=(min_year, max_year),
-            )
+        # Founding Year range (guard against missing/None)
+        years_list = df2["Founding Year"].dropna().astype(int).tolist()
+        if len(years_list) == 0:
+            st.sidebar.info("No numeric founding‐year data available.")
+            sel_year_range = (None, None)
         else:
-            sel_year_range = (0, 9999)
+            min_year = min(years_list)
+            max_year = max(years_list)
+            if min_year == max_year:
+                st.sidebar.write(f"Founded in: {min_year}")
+                sel_year_range = (min_year, max_year)
+            else:
+                sel_year_range = st.sidebar.slider(
+                    "Founding Year Range",
+                    min_value=min_year,
+                    max_value=max_year,
+                    value=(min_year, max_year)
+                )
 
+        # Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
-        sel_stages = st.sidebar.multiselect("Funding Stage", options=all_stages, default=all_stages)
+        sel_stages = st.sidebar.multiselect(
+            "Funding Stage",
+            options=all_stages,
+            default=all_stages
+        )
 
-        # Apply Filters
-        if valid_years.empty:
-            filtered = df2[
-                (df2["Industry"].isin(sel_industries)) &
-                (df2["Funding Stage"].isin(sel_stages))
-            ]
-        else:
-            filtered = df2[
-                (df2["Industry"].isin(sel_industries)) &
-                (df2["Funding Stage"].isin(sel_stages)) &
-                (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
-            ]
+        # ------- Apply Filters -------
+        mask = (
+            df2["Industry"].isin(sel_industries)
+            & df2["Funding Stage"].isin(sel_stages)
+        )
+        if sel_year_range[0] is not None and sel_year_range[1] is not None:
+            yr_min, yr_max = sel_year_range
+            mask &= df2["Founding Year"].between(yr_min, yr_max)
+
+        filtered = df2[mask]
 
         st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
 
+        # ------- Summary Charts -------
         if not filtered.empty:
-            # Industry Breakdown Bar Chart
+            # 1) Industry Breakdown (bar chart)
             st.markdown("**Industry Breakdown**")
             industry_counts = filtered["Industry"].value_counts()
             st.bar_chart(industry_counts)
 
-            # Founding Year Distribution Bar Chart
+            # 2) Founding Year Distribution (bar chart)
             st.markdown("**Founding Year Distribution**")
             year_counts = filtered["Founding Year"].value_counts().sort_index()
             st.bar_chart(year_counts)
 
-            # Funding Stage Breakdown Bar Chart
+            # 3) Funding Stage Breakdown (bar chart)
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts()
             st.bar_chart(stage_counts)
 
         st.markdown("---")
+
+        # ------- Display Filtered Table -------
         st.markdown("### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
