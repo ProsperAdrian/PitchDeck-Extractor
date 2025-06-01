@@ -64,6 +64,10 @@ def set_custom_styles():
         font-size: 24px !important;
         font-weight: 700;
     }}
+    h2 {{
+        font-size: 18px !important;
+        font-weight: 400;
+    }}
     .uploaded-filename, .processing-msg, .success-msg, .extracted-title {{
         font-size: 14px;
         font-weight: 500;
@@ -298,7 +302,7 @@ with tab1:
             st.markdown("---")
 
             # 8c) KEY SLIDE PREVIEW: CHATGPT‐DRIVEN
-            st.markdown("### 🔑 Key Slide Preview")
+            st.markdown('<h2>Key Slide Preview</h2>')
             st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
 
             selected_deck = st.selectbox(
