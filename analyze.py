@@ -8,7 +8,7 @@ from extract_text import extract_text_from_pdf  # our Phase 2 function
 
 # Load the OpenAI API key from .env
 load_dotenv()
-client = OpenAI(api_key="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")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # Folder paths
 INPUT_FOLDER = "input_decks"
