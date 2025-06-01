@@ -298,14 +298,26 @@ with tab2:
         )
 
         # Founding Year range
-        min_year = int(df2["Founding Year"].dropna().min())
-        max_year = int(df2["Founding Year"].dropna().max())
-        sel_year_range = st.sidebar.slider(
-            "Founding Year Range", 
-            min_year, 
-            max_year, 
-            (min_year, max_year)
-        )
+        # ⇢ Founding Year range (guard against missing or non‐numeric years)
+        years = df2["Founding Year"].dropna().astype(int).tolist()
+        if len(years) == 0:
+            st.sidebar.info("Founding Year: no numeric data to filter.")
+            sel_year_range = (None, None)
+        else:
+            min_year = min(years)
+            max_year = max(years)
+            # If min_year == max_year, use a single‐value slider
+            if min_year == max_year:
+                st.sidebar.write(f"Founded in: {min_year}")
+                sel_year_range = (min_year, max_year)
+            else:
+                sel_year_range = st.sidebar.slider(
+                    "Founding Year Range",
+                    min_value=min_year,
+                    max_value=max_year,
+                    value=(min_year, max_year),
+                )
+
 
         # Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
@@ -314,11 +326,17 @@ with tab2:
         )
 
         # ------- Apply Filters -------
-        filtered = df2[
+        mask = (
             (df2["Industry"].isin(sel_industries)) &
-            (df2["Funding Stage"].isin(sel_stages)) &
-            (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
-        ]
+            (df2["Funding Stage"].isin(sel_stages))
+        )
+        
+        # Only apply “Founding Year” filter if the slider gave us a real range
+        if sel_year_range[0] is not None and sel_year_range[1] is not None:
+            yr_min, yr_max = sel_year_range
+            mask &= df2["Founding Year"].between(yr_min, yr_max)
+        
+        filtered = df2[mask]
 
         st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
 
