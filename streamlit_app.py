@@ -45,7 +45,7 @@ def set_custom_styles():
         font-weight: 500;
         color: #222;
         margin-top: -0.2rem;
-        margin-bottom: 0.2rem;
+        margin-bottom: 3rem;
     }}
     .stButton>button {{
         border-radius: 8px;
