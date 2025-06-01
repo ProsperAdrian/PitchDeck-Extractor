@@ -154,7 +154,7 @@ def call_chatgpt(prompt, api_key, model="gpt-3.5-turbo"):
     content = response.choices[0].message.content.strip()
 
     # Parse out the JSON
-try:
+    try:
         return json.loads(content)
     except json.JSONDecodeError:
         start = content.find("{")
