@@ -56,8 +56,8 @@ set_background()
 # ----------------- App Title -----------------
 st.title("📊 Pitch Deck Extractor")
 st.markdown("""
-Upload one or more pitch-deck PDFs. We'll extract key fields like:
-**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Funding Stage**, **Revenue**, **Market (TAM/SAM/SOM)** and more.
+Upload one or more pitch-deck PDFs. This tool leverages AI & predefined heuristics to extract:
+**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Funding Stage**, **Revenue**, **Market (TAM/SAM/SOM)**.
 """)
 
 # ----------------- File Upload -----------------
@@ -101,15 +101,15 @@ if uploaded_files:
         for rec in all_results:
             row = {
                 "Filename": rec.get("__filename"),
-                "StartupName": rec.get("StartupName"),
-                "FoundingYear": rec.get("FoundingYear"),
+                "Startup Name": rec.get("StartupName"),
+                "Founding Year": rec.get("FoundingYear"),
                 "Founders": "; ".join(rec.get("Founders") or []),
                 "Industry": rec.get("Industry"),
                 "Niche": rec.get("Niche"),
                 "USP": rec.get("USP"),
-                "FundingStage": rec.get("FundingStage"),
-                "CurrentRevenue": rec.get("CurrentRevenue"),
-                "AmountRaised": rec.get("AmountRaised"),
+                "Funding Stage": rec.get("FundingStage"),
+                "Current Revenue": rec.get("CurrentRevenue"),
+                "Amount Raised": rec.get("AmountRaised"),
             }
             market = rec.get("Market") or {}
             row["TAM"] = market.get("TAM")
