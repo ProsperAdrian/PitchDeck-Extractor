@@ -95,7 +95,7 @@ EXAMPLE_2_JSON = {
   "Niche": "Cryptocurrency exchange",
   "USP": "All-in-one platform with seamless fiat on/off ramps and a single API enabling African users and businesses to access 1,200+ crypto pairs securely",
   "Funding Stage": "null",
-  "Current Revenue": "$10m",
+  "Current Revenue": "$10.2m",
   "Market": { "TAM": "null", "SAM": "null", "SOM": "null" },
   "Amount Raised": "$0"
 }
@@ -112,7 +112,7 @@ You are an expert at extracting structured data from investor pitch decks. For e
   "Niche": string or null,          # free-text description e.g. “crypto exchange”, “mobile betting”, “AI tutoring”
   "USP": string or null,            # a single sentence from the deck that states the unique selling proposition
   "Funding Stage": string or null,   # If no explicit round is mentioned, Scan the deck for the following signals: • capital sought, • traction metrics (users, revenue, growth), • product maturity, • team size & seniority, • prior funding, • planned use of funds, • target investors, • implied valuation. Using these signals and standard VC heuristics, decide the most probable funding round (Pre-seed, Seed, Series A, Series B, Series C or later).
-  "Current Revenue": string or null, # Look for the total revenue in the current year or ARR and make sure it is a number
+  "Current Revenue": string or null, # Look for the most recent year revenue in the slide that best describe what the latest revenue of the company is 
   "Market": { "TAM": string or null, "SAM": string or null, "SOM": string or null } or null,
   "Amount Raised": string or null,  # what is the likely cummulative amount the startup has raised from inception?
 }
