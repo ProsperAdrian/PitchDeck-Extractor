@@ -5,11 +5,10 @@ import pandas as pd
 import os
 import json
 import fitz  # PyMuPDF
-import matplotlib.pyplot as plt
+from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
-from openai import OpenAI
 
 # ----------------------------------------
 # 1) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
@@ -19,7 +18,6 @@ openai_api_key = st.secrets["openai"]["api_key"]
 # ----------------------------------------
 # 2) HIDE DEPRECATION WARNINGS FOR use_column_width
 # ----------------------------------------
-# This CSS rule will suppress any yellow‐banner “use_column_width is deprecated” messages.
 HIDE_WARNING_STYLE = """
 <style>
     .stAlert, .stAlertWarning {
@@ -139,7 +137,6 @@ def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
         "Answer in JSON format with keys \"TeamPage\", \"MarketPage\", \"TractionPage\".\n"
     ]
 
-    # Append each page’s first ~200 characters of text
     for i, full_text in enumerate(page_texts):
         snippet = full_text.replace("\n", " ").strip()[:200]
         prompt_lines.append(f"---\nPage {i+1}:\n{snippet}\n")
@@ -190,14 +187,12 @@ with tab1:
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
-            # Process each uploaded PDF
             for pdf_file in uploaded_files:
                 st.markdown(
                     f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>',
                     unsafe_allow_html=True,
                 )
 
-                # Write the PDF bytes to a temporary file so extract_text can read it
                 raw_bytes = pdf_file.read()
                 temp_folder = "temp"
                 os.makedirs(temp_folder, exist_ok=True)
@@ -206,7 +201,6 @@ with tab1:
                     f.write(raw_bytes)
 
                 try:
-                    # (1) TEXT EXTRACTION -> FEW‐SHOT PROMPT -> CHATGPT CALL
                     deck_text = extract_text_from_pdf(temp_path)
                     os.remove(temp_path)
 
@@ -215,7 +209,6 @@ with tab1:
                     result["__filename"] = pdf_file.name
                     all_results.append(result)
 
-                    # (2) KEEP THE ORIGINAL BYTES FOR LATER SLIDE PREVIEW
                     pdf_buffers[pdf_file.name] = raw_bytes
 
                 except Exception as e:
@@ -311,16 +304,14 @@ with tab1:
                 # (2) Ask ChatGPT which pages correspond to Team/Market/Traction
                 key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
 
-                raw_team    = key_info.get("TeamPage")
-                raw_market  = key_info.get("MarketPage")
-                raw_traction= key_info.get("TractionPage")
+                raw_team     = key_info.get("TeamPage")
+                raw_market   = key_info.get("MarketPage")
+                raw_traction = key_info.get("TractionPage")
 
-                # Convert GPT’s 1-indexed values to 0-indexed
                 team_idx     = (int(raw_team) - 1) if raw_team else None
                 market_idx   = (int(raw_market) - 1) if raw_market else None
                 traction_idx = (int(raw_traction) - 1) if raw_traction else None
 
-                # Collect only valid slides
                 key_slides = []
                 if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
                     key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
@@ -373,7 +364,7 @@ with tab2:
 
         df2 = pd.DataFrame(rows2)
 
-        # If there are no valid founding years (all null), skip the slider entirely
+        # Sidebar Filters
         st.sidebar.header("🔎 Filters")
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect("Industry", options=all_industries, default=all_industries)
@@ -395,18 +386,16 @@ with tab2:
         sel_stages = st.sidebar.multiselect("Funding Stage", options=all_stages, default=all_stages)
 
         # Apply filters
-        filtered = df2.copy()
         if valid_years.empty:
-            # If no numeric founding years exist, ignore that filter
-            filtered = filtered[
-                (filtered["Industry"].isin(sel_industries)) &
-                (filtered["Funding Stage"].isin(sel_stages))
+            filtered = df2[
+                (df2["Industry"].isin(sel_industries)) &
+                (df2["Funding Stage"].isin(sel_stages))
             ]
         else:
-            filtered = filtered[
-                (filtered["Industry"].isin(sel_industries)) &
-                (filtered["Funding Stage"].isin(sel_stages)) &
-                (filtered["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
+            filtered = df2[
+                (df2["Industry"].isin(sel_industries)) &
+                (df2["Funding Stage"].isin(sel_stages)) &
+                (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
             ]
 
         st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
@@ -422,16 +411,13 @@ with tab2:
             year_counts = filtered["Founding Year"].value_counts().sort_index()
             st.bar_chart(year_counts)
 
-            # Funding Stage Pie Chart
+            # Funding Stage Breakdown Bar Chart (replacing pie chart)
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts()
-            fig, ax = plt.subplots()
-            stage_counts.plot.pie(autopct="%.0f%%", ylabel="", legend=False, ax=ax)
-            st.pyplot(fig)
+            st.bar_chart(stage_counts)
 
         st.markdown("---")
 
-        # Display the filtered table at the bottom
+        # Display the filtered table
         st.markdown("### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
-
