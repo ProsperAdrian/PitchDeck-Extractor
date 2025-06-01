@@ -3,7 +3,7 @@
 import streamlit as st
 import pandas as pd
 import os, json
-import fitz  # PyMuPDF, used to render PDF pages as images
+import fitz  # PyMuPDF, to render PDF pages as images
 
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
@@ -21,8 +21,8 @@ def set_custom_styles():
     custom_css = f"""
     <style>
     .stApp {{
-        /* (Optional) You can embed a local base64 image here */
-        /* background-image: url("data:image/png;base64,YOUR_BASE64_IMAGE_HERE"); */
+        /* Optional: set a background image as base64 if you like */
+        /* background-image: url("data:image/png;base64,YOUR_BASE64_HERE"); */
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
@@ -105,7 +105,7 @@ tab1, tab2 = st.tabs(["1️⃣ Library View", "2️⃣ Dashboard View"])
 # ----------------- TAB 1: LIBRARY VIEW -----------------
 #
 with tab1:
-    # Narrow the uploader to center
+    # Center the uploader
     st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
         "Drag & drop PDF(s) here (or click to browse)", 
@@ -115,22 +115,21 @@ with tab1:
     st.markdown('</div>', unsafe_allow_html=True)
 
     all_results = []
-    pdf_buffers = {}  # Keep raw bytes of each PDF so we can render key slides
-    df = None         # DataFrame of extracted results (once available)
+    pdf_buffers = {}   # Keep the raw bytes so we can preview key slides
+    df = None          # Will hold the DataFrame once extraction is done
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
-            # Create temp folder if not exists
+            # Ensure a temp folder exists
             os.makedirs("temp", exist_ok=True)
 
             for pdf_file in uploaded_files:
-                # Show filename being processed
                 st.markdown(
                     f'<div class="uploaded-filename">Processing <strong>{pdf_file.name}</strong>…</div>',
                     unsafe_allow_html=True
                 )
 
-                # Save buffer temporarily to disk so extract_text can read it
+                # Save file‐buffer to disk so extract_text can read it
                 bytes_data = pdf_file.read()
                 temp_path = os.path.join("temp", pdf_file.name)
                 with open(temp_path, "wb") as f:
@@ -141,18 +140,17 @@ with tab1:
                     deck_text = extract_text_from_pdf(temp_path)
                     os.remove(temp_path)
 
-                    # 2) Build few‐shot prompt and call OpenAI
+                    # 2) Build the few‐shot prompt & call GPT
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
                     result["__filename"] = pdf_file.name
                     all_results.append(result)
 
-                    # 3) Keep raw bytes so we can preview key slides later
+                    # 3) Keep raw bytes for key‐slide previews
                     pdf_buffers[pdf_file.name] = bytes_data
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
-                    # Clean up if temp still exists
                     if os.path.exists(temp_path):
                         os.remove(temp_path)
                     continue
@@ -167,7 +165,6 @@ with tab1:
             # Build a Pandas DataFrame of extracted results
             rows = []
             for rec in all_results:
-                # Support both “key” and “key with spaces”
                 startup_name  = rec.get("StartupName") or rec.get("Startup Name")
                 founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
                 founders      = rec.get("Founders") or []
@@ -175,8 +172,8 @@ with tab1:
                 niche         = rec.get("Niche")
                 usp           = rec.get("USP")
                 funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
-                current_rev   = rec.get("CurrentRevenue") or rec.get("Current Revenue")
-                amount_raised = rec.get("AmountRaised") or rec.get("Amount Raised")
+                curr_rev      = rec.get("CurrentRevenue") or rec.get("Current Revenue")
+                amt_raised    = rec.get("AmountRaised") or rec.get("Amount Raised")
 
                 row = {
                     "Filename": rec.get("__filename"),
@@ -187,8 +184,8 @@ with tab1:
                     "Niche": niche,
                     "USP": usp,
                     "Funding Stage": funding_stage,
-                    "Current Revenue": current_rev,
-                    "Amount Raised": amount_raised,
+                    "Current Revenue": curr_rev,
+                    "Amount Raised": amt_raised,
                 }
                 market = rec.get("Market") or {}
                 row["TAM"] = market.get("TAM")
@@ -232,7 +229,6 @@ with tab1:
             "Select a deck from the table above to preview its important slides (Team, Market, Traction)."
         )
 
-        # Build selectbox options from df["Filename"]
         options = df["Filename"].tolist()
         selected_deck = st.selectbox(
             "❓ Which Deck would you like to preview?",
@@ -243,46 +239,55 @@ with tab1:
             pdf_bytes = pdf_buffers[selected_deck]
             doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
-            # Dynamically find the first page whose text contains each keyword:
-            # • “Team” (or “Founder”)
-            # • “TAM” / “SAM” / “SOM” / “Market Size” / “Market Opportunity”
-            # • “Traction” or “Gross Revenues” or “Revenue”
+            # We will pick THREE distinct pages: Team, Market, Traction
+            team_idx = None
+            market_idx = None
+            traction_idx = None
+
+            # (1) First pass: find the Team slide: look for “team” or “founder”
+            for i in range(doc.page_count):
+                text = doc[i].get_text().lower()
+                if ("team" in text or "founder" in text) and team_idx is None:
+                    team_idx = i
+
+            # (2) Next pass: find the Market slide: look for explicit “tam” / “market size” / “market opportunity” / “sam” / “som”
+            for i in range(doc.page_count):
+                if team_idx is not None and i == team_idx:
+                    continue
+                text = doc[i].get_text().lower()
+                if (
+                    "tam" in text
+                    or "market size" in text
+                    or "market opportunity" in text
+                    or "sam" in text
+                    or "som" in text
+                ) and market_idx is None:
+                    market_idx = i
+
+            # (3) Final pass: find the Traction slide: look for “traction” or “gross revenue” or “revenue”
+            for i in range(doc.page_count):
+                if i == team_idx or i == market_idx:
+                    continue
+                text = doc[i].get_text().lower()
+                if (
+                    "traction" in text
+                    or "gross revenue" in text
+                    or "revenue" in text
+                ) and traction_idx is None:
+                    traction_idx = i
+
             key_slides = {}
-            for page_index in range(doc.page_count):
-                page = doc[page_index]
-                text = page.get_text().lower()
+            if team_idx is not None:
+                key_slides["Team Slide"] = team_idx
+            if market_idx is not None:
+                key_slides["Market Slide"] = market_idx
+            if traction_idx is not None:
+                key_slides["Traction Slide"] = traction_idx
 
-                # 1) Team Slide detection: look for “team” or “founder”
-                if ("team" in text or "founder" in text) and "Team Slide" not in key_slides:
-                    key_slides["Team Slide"] = page_index
-
-                # 2) Market Slide detection: look explicitly for “tam” / “market size” / “market opp”
-                #    or “sam” / “som”
-                if (
-                    ("tam" in text) or
-                    ("market size" in text) or
-                    ("market opportunity" in text) or
-                    ("sam" in text) or
-                    ("som" in text)
-                ) and "Market Slide" not in key_slides:
-                    key_slides["Market Slide"] = page_index
-
-                # 3) Traction Slide detection: look for “traction” or “gross revenue” or “revenue”
-                if (
-                    ("traction" in text) or
-                    ("gross revenue" in text) or
-                    ("revenue" in text)
-                ) and "Traction Slide" not in key_slides:
-                    key_slides["Traction Slide"] = page_index
-
-                # If we’ve found all three, break early
-                if len(key_slides) >= 3:
-                    break
-
-            cols = st.columns(max(len(key_slides), 1))
             if not key_slides:
-                st.info("⚠️ Could not automatically detect Team / Market / Traction pages in this deck.")
+                st.info("⚠️ Unable to auto‐detect Team/Market/Traction slides in this deck.")
             else:
+                cols = st.columns(len(key_slides))
                 for col, (label, idx) in zip(cols, key_slides.items()):
                     if idx < doc.page_count:
                         page = doc[idx]
@@ -291,10 +296,10 @@ with tab1:
                         col.image(
                             img_bytes,
                             caption=f"{label} (page {idx+1})",
-                            use_column_width=True
+                            use_container_width=True
                         )
                     else:
-                        col.write(f"❌ {label} not found (out of range)")
+                        col.write(f"❌ {label} out of range")
 
             doc.close()
 
@@ -307,15 +312,14 @@ with tab2:
     if not all_results:
         st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
     else:
-        # Re‐construct a smaller DataFrame for filtering/charts
+        # Reconstruct a small DataFrame for filtering & charts
         rows2 = []
         for rec in all_results:
             startup_name = rec.get("StartupName") or rec.get("Startup Name")
-            founding_year_raw = rec.get("FoundingYear") or rec.get("Founding Year")
+            fy_raw       = rec.get("FoundingYear") or rec.get("Founding Year")
 
-            # Try to convert to int; otherwise None
             try:
-                founding_year = int(founding_year_raw)
+                founding_year = int(fy_raw)
             except:
                 founding_year = None
 
@@ -338,17 +342,19 @@ with tab2:
         # Industry filter
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect(
-            "Industry", options=all_industries, default=all_industries
+            "Industry",
+            options=all_industries,
+            default=all_industries
         )
 
-        # ⇢ Founding Year range (guard against non‐numeric or missing)
-        years = df2["Founding Year"].dropna().astype(int).tolist()
-        if len(years) == 0:
-            st.sidebar.info("Founding Year: no numeric data to filter.")
+        # Founding Year range (guard against missing/None)
+        years_list = df2["Founding Year"].dropna().astype(int).tolist()
+        if len(years_list) == 0:
+            st.sidebar.info("No numeric founding‐year data available.")
             sel_year_range = (None, None)
         else:
-            min_year = min(years)
-            max_year = max(years)
+            min_year = min(years_list)
+            max_year = max(years_list)
             if min_year == max_year:
                 st.sidebar.write(f"Founded in: {min_year}")
                 sel_year_range = (min_year, max_year)
@@ -357,21 +363,22 @@ with tab2:
                     "Founding Year Range",
                     min_value=min_year,
                     max_value=max_year,
-                    value=(min_year, max_year),
+                    value=(min_year, max_year)
                 )
 
         # Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
-            "Funding Stage", options=all_stages, default=all_stages
+            "Funding Stage",
+            options=all_stages,
+            default=all_stages
         )
 
         # ------- Apply Filters -------
         mask = (
-            (df2["Industry"].isin(sel_industries)) &
-            (df2["Funding Stage"].isin(sel_stages))
+            df2["Industry"].isin(sel_industries)
+            & df2["Funding Stage"].isin(sel_stages)
         )
-
         if sel_year_range[0] is not None and sel_year_range[1] is not None:
             yr_min, yr_max = sel_year_range
             mask &= df2["Founding Year"].between(yr_min, yr_max)
