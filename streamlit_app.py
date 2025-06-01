@@ -10,13 +10,13 @@ openai_api_key = st.secrets["openai"]["api_key"]
 
 # ----------------- UI Setup -----------------
 st.set_page_config(
-    page_title="Pitch Deck Analysis",
+    page_title="Pitch Deck Extractor",
     layout="wide",
 )
 
-# Inject modern design with exact font sizes
-def set_background():
-    page_bg_img = f"""
+# Inject modern design with font control and hidden uploader files
+def set_custom_styles():
+    custom_css = f"""
     <style>
     .stApp {{
         background-image: url("data:image/png;base64,YOUR_BASE64_IMAGE_HERE");
@@ -59,30 +59,36 @@ def set_background():
         background-color: #265DAB;
         transform: scale(1.02);
     }}
+    .narrow-uploader {{
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+    }}
+    /* Hide uploaded file display */
+    div[data-testid="stFileUploader"] > div > div:nth-child(2) {{
+        display: none !important;
+    }}
     </style>
     """
-    st.markdown(page_bg_img, unsafe_allow_html=True)
+    st.markdown(custom_css, unsafe_allow_html=True)
 
-set_background()
+set_custom_styles()
 
 # ----------------- App Title -----------------
-st.markdown('<h1>📊 Pitch Deck Extractor</h1>', unsafe_allow_html=True)
+st.markdown('<h1>📊 Pitch Deck Analysis</h1>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch-deck PDFs. This tool leverages AI & predefined heuristics to extract:
-**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Funding Stage**, **Revenue**, **Market (TAM/SAM/SOM)**.
+**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, **Amount Raised**.
 """)
 
 # ----------------- File Upload -----------------
-st.markdown('<div class="custom-subheader">📂 Upload Pitch Decks</div>', unsafe_allow_html=True)
+st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
 uploaded_files = st.file_uploader(
     "Drag & drop PDF(s) here (or click to browse)", 
     type=["pdf"],
     accept_multiple_files=True,
 )
-
-if uploaded_files:
-    for f in uploaded_files:
-        st.markdown(f'<div class="uploaded-filename">{f.name} &nbsp; {(f.size / 1e6):.1f}MB</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # ----------------- Processing -----------------
 if uploaded_files:
@@ -140,7 +146,7 @@ if uploaded_files:
 
         df = pd.DataFrame(rows)
 
-        st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
+        st.markdown('<div class="extracted-title">📑 Extracted Results</div>', unsafe_allow_html=True)
         st.dataframe(df, use_container_width=True)
 
         # ----------------- Export Options -----------------
