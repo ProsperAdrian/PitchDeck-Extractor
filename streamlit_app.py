@@ -44,8 +44,8 @@ def set_custom_styles():
         font-size: 14px;
         font-weight: 500;
         color: #222;
-        margin-top: -0.2rem;
-        margin-bottom: 3.5rem;
+        margin-top: -0.1rem;
+        margin-bottom: 2.5rem;
     }}
     .stButton>button {{
         border-radius: 8px;
