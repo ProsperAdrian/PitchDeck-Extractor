@@ -8,7 +8,7 @@ import openai
 from extract_text import extract_text_from_pdf
 from analyze import build_few_shot_prompt, call_chatgpt
 
-openai.api_key = st.secrets["OPENAI_API_KEY"]
+openai.api_key = st.secrets["openai"]["api_key"]
 
 
 # --------------------------------------------------
