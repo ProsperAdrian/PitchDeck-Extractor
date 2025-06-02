@@ -370,18 +370,21 @@ with tab1:
 # ─────────────────────────────────────────────────────────────────────────────
 # ----------------- TAB 2: DASHBOARD VIEW -----------------
 #
+# … your code above remains unchanged …
+
 with tab2:
     st.markdown("##### Dashboard")
 
     if not all_results:
-        st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
+        st.warning(
+            "Upload at least one PDF in the Library View first, then come here to see the Dashboard."
+        )
     else:
         # Reconstruct a small DataFrame for filtering & charts
         rows2 = []
         for rec in all_results:
             startup_name = rec.get("StartupName") or rec.get("Startup Name")
             fy_raw       = rec.get("FoundingYear") or rec.get("Founding Year")
-
             try:
                 founding_year = int(fy_raw)
             except:
@@ -400,12 +403,10 @@ with tab2:
 
         df2 = pd.DataFrame(rows2)
 
-        # … earlier code that builds df2 …
-
         # ------- Sidebar Filters -------
         st.sidebar.header("🔎 Filters")
 
-        # 1) Industry filter (unchanged)
+        # 1) Industry filter
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect(
             "Industry",
@@ -432,7 +433,7 @@ with tab2:
                     value=(min_year, max_year)
                 )
 
-        # 3) Funding Stage filter (unchanged)
+        # 3) Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
             "Funding Stage",
@@ -440,17 +441,19 @@ with tab2:
             default=all_stages
         )
 
-        # ------- Apply Filters -------
-        mask = (
-            df2["Industry"].isin(sel_industries)
-            & df2["Funding Stage"].isin(sel_stages)
-        )
+        # ------- Apply Filters (allow NaN so “missing” decks are not dropped) -------
+        # Start with all True, then AND in each condition:
+        mask = pd.Series(True, index=df2.index)
 
-        # ONLY add the year‐between test if we actually have a min/max.
+        # ● Industry filter: keep row if (industry is in sel_industries) OR industry is NaN
+        mask &= (df2["Industry"].isin(sel_industries) | df2["Industry"].isna())
+
+        # ● Funding Stage filter: similarly allow NaN
+        mask &= (df2["Funding Stage"].isin(sel_stages) | df2["Funding Stage"].isna())
+
+        # ● Founding Year filter: only apply if we actually built a slider
         if sel_year_range[0] is not None and sel_year_range[1] is not None:
             yr_min, yr_max = sel_year_range
-
-            # *** Change is here: also include rows where Founding Year is NaN ***
             mask &= (
                 df2["Founding Year"].between(yr_min, yr_max)
                 | df2["Founding Year"].isna()
@@ -464,17 +467,23 @@ with tab2:
         if not filtered.empty:
             # 1) Industry Breakdown (bar chart)
             st.markdown("**Industry Breakdown**")
-            industry_counts = filtered["Industry"].value_counts()
+            industry_counts = filtered["Industry"].value_counts(dropna=True)
             st.bar_chart(industry_counts)
 
             # 2) Founding Year Distribution (bar chart)
             st.markdown("**Founding Year Distribution**")
-            year_counts = filtered["Founding Year"].value_counts().sort_index()
+            year_counts = (
+                filtered["Founding Year"]
+                .dropna()
+                .astype(int)
+                .value_counts()
+                .sort_index()
+            )
             st.bar_chart(year_counts)
 
             # 3) Funding Stage Breakdown (bar chart)
             st.markdown("**Funding Stage Breakdown**")
-            stage_counts = filtered["Funding Stage"].value_counts()
+            stage_counts = filtered["Funding Stage"].value_counts(dropna=True)
             st.bar_chart(stage_counts)
 
         st.markdown("---")
