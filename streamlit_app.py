@@ -273,6 +273,19 @@ with tab1:
 
             df = pd.DataFrame(rows)
             st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
+
+            startups_to_remove = st.multiselect(
+                "❌ Select startups to remove from the table:",
+                options=startup_names
+            )
+            
+            if startups_to_remove:
+                df = df[~df["Startup Name"].isin(startups_to_remove)]
+                all_results = [
+                    rec for rec in all_results
+                    if (rec.get("StartupName") or rec.get("Startup Name")) not in startups_to_remove
+                ]
+            
             st.dataframe(df, use_container_width=True)
 
             # EXPORT BUTTONS: JSON + CSV
