@@ -142,7 +142,7 @@ def build_few_shot_prompt(deck_slide_text):
     """
     return PROMPT_PREFIX + deck_slide_text + "\nJSON answer:"
 
-def call_chatgpt(prompt, api_key, model="gpt-3-turbo"):
+def call_chatgpt(prompt, api_key, model="gpt-3.5-turbo"):
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model=model,
