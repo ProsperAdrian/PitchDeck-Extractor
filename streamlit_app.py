@@ -272,6 +272,8 @@ with tab1:
                 rows.append(row)
 
             df = pd.DataFrame(rows)
+            
+            st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
 
             # 🔻 INSERT THIS BLOCK RIGHT HERE
             startup_names = df["Startup Name"].dropna().unique().tolist()
@@ -289,8 +291,8 @@ with tab1:
                     if (rec.get("StartupName") or rec.get("Startup Name")) not in startups_to_remove
                 ]
             # 🔺 END OF INSERTED BLOCK
+
             
-            st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
             st.dataframe(df, use_container_width=True)
 
             # EXPORT BUTTONS: JSON + CSV
