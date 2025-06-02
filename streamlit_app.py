@@ -400,10 +400,12 @@ with tab2:
 
         df2 = pd.DataFrame(rows2)
 
+        # … earlier code that builds df2 …
+
         # ------- Sidebar Filters -------
         st.sidebar.header("🔎 Filters")
 
-        # Industry filter
+        # 1) Industry filter (unchanged)
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect(
             "Industry",
@@ -411,7 +413,7 @@ with tab2:
             default=all_industries
         )
 
-        # Founding Year range (guard against missing/None)
+        # 2) Founding Year range (guard against missing/None)
         years_list = df2["Founding Year"].dropna().astype(int).tolist()
         if len(years_list) == 0:
             st.sidebar.info("No numeric founding‐year data available.")
@@ -430,7 +432,7 @@ with tab2:
                     value=(min_year, max_year)
                 )
 
-        # Funding Stage filter
+        # 3) Funding Stage filter (unchanged)
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
             "Funding Stage",
@@ -443,9 +445,16 @@ with tab2:
             df2["Industry"].isin(sel_industries)
             & df2["Funding Stage"].isin(sel_stages)
         )
+
+        # ONLY add the year‐between test if we actually have a min/max.
         if sel_year_range[0] is not None and sel_year_range[1] is not None:
             yr_min, yr_max = sel_year_range
-            mask &= df2["Founding Year"].between(yr_min, yr_max)
+
+            # *** Change is here: also include rows where Founding Year is NaN ***
+            mask &= (
+                df2["Founding Year"].between(yr_min, yr_max)
+                | df2["Founding Year"].isna()
+            )
 
         filtered = df2[mask]
 
