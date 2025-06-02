@@ -1,209 +1,479 @@
-# scripts/analyze.py
+# ─────────────────────────────────────────────────────────────────────────────
+# streamlit_app.py
+#
+# • Ensure st.set_page_config is first.
+# • Use @st.cache_data to cache each PDF’s “parsed JSON” by filename+bytes.
+# • Only call ChatGPT when a file is first uploaded (or when its bytes change).
+# • Subsequent tab switches / filtering / sorting / re-drawing use cached data.
+# ─────────────────────────────────────────────────────────────────────────────
 
+import streamlit as st
+import pandas as pd
 import os
 import json
+import hashlib
+import fitz                           # PyMuPDF, for rendering PDF pages as images
 from openai import OpenAI
-from dotenv import load_dotenv
-from extract_text import extract_text_from_pdf  # our Phase 2 function
 
-# Folder paths
-INPUT_FOLDER = "input_decks"
-OUTPUT_FOLDER = "parsed_entities"
+from extract_text import extract_text_from_pdf
+from analyze import build_few_shot_prompt, call_chatgpt
 
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# ─────────────────────────────────────────────────────────────────────────────
+# 1) STREAMLIT PAGE CONFIG (MUST BE FIRST)
+# ─────────────────────────────────────────────────────────────────────────────
+st.set_page_config(
+    page_title="Pitch Deck Extractor",
+    layout="wide",
+)
 
-# ---- FEW‐SHOT EXAMPLES (hardcoded) ----
-EXAMPLE_1_TEXT = """
------ Slide 1 -----
-Yabscore
------ Slide 2 -----
-Founded in Oct 2019, we are a sport-tech startup focused on mobile sports betting in Nigeria.
------ Slide 3 -----
-Team:
-IK Ezekwelu – Co-Founder
-Dapo Arowa – Co-Founder
-Adewale Adeleke – Creative Head
------ Slide 4 -----
-Unique Selling Proposition:
-Yabscore is the first fully mobile sports-betting platform tailored to Nigerian football fans, offering in-play wagering and live performance stats.
------ Slide 7 -----
-Market Size:
-TAM: $95 Billion +
-SAM: $2.2 Billion +
-Market Opp.: $193 Million +
------ Slide 12 -----
-Traction:
-Gross Revenues in 2020: $3.1k
-"""
+# ─────────────────────────────────────────────────────────────────────────────
+# 2) GET YOUR OPENAI KEY FROM STREAMLIT SECRETS
+# ─────────────────────────────────────────────────────────────────────────────
+openai_api_key = st.secrets["openai"]["api_key"]
 
-EXAMPLE_1_JSON = {
-  "Startup Name": "Yabscore",
-  "Founding Year": "2019",
-  "Founders": ["IK Ezekwelu", "Dapo Arowa"],
-  "Industry": "Sporttech",
-  "Niche": "Mobile sports betting",
-  "USP": "Yabscore is the first fully mobile sports-betting platform tailored to Nigerian football fans, offering in-play wagering and live performance stats.",
-  "Funding Stage": None,
-  "Current Revenue": "$3.1k",
-  "Market": { "TAM": "$95B", "SAM": "$2.2B", "SOM": "$193B" },
-  "Amount Raised": "$0"
-}
-
-EXAMPLE_2_TEXT = """
------ Slide 1 -----
-Quidax
-
------ Slide 2 -----
-Founded in August 2018, Quidax is a fintech “cryptocurrency enabler” that lets individuals and businesses across Africa buy, sell, save and spend crypto in their local currency through an exchange, OTC desk and a single, full-stack crypto API 
-.
-
------ Slide 3 -----
-Team:
-Buchi Okoro – Co-Founder & CEO
-Uzo Awili – Co-Founder & CTO
-Morris Ebieroma – Co-Founder & CIO 
-
------ Slide 4 -----
-Unique Selling Proposition:
-An Africa-focused, all-in-one crypto platform offering:
-• Seamless fiat on/off-ramps and 1,200+ trading pairs.
-• A single API that lets banks, fintechs and gaming apps embed custody, trading and payments in days.
-• “African Proximity Advantage” – deep local rails, faster support and lower switching costs than global rivals .
-
------ Slide 7 -----
-Market Opportunity:
-• 575 million+ global crypto users as of Dec 2024; 65 million in Africa, with Nigeria ranked #2 worldwide for adoption 
-.
-(The deck does not state dollar TAM/SAM/SOM figures.)
-
------ Slide 12 -----
-Traction:
-• Crossed $10 million ARR and 700 k sign-ups in 2023 
-.
-• Surpassed $100 million cumulative trading volume by Oct 2020 and now processes ~$25 million monthly 
-.
-• Serves 2,000+ business API clients across digital banking, gaming and fintech .
-
-(No fundraising ask, Series round or formal TAM/SAM/SOM numbers are disclosed in the deck.)
-"""
-
-EXAMPLE_2_JSON = {
-  "Startup Name": "Quidax",
-  "Founding Year": "2018",
-  "Founders": ["Buchi Okoro", "Uzo Awili", "Morris Ebieroma"],
-  "Industry": "FinTech",
-  "Niche": "Cryptocurrency exchange",
-  "USP": "All-in-one platform with seamless fiat on/off ramps and a single API enabling African users and businesses to access 1,200+ crypto pairs securely",
-  "Funding Stage": "null",
-  "Current Revenue": "$10.2m",
-  "Market": { "TAM": "null", "SAM": "null", "SOM": "null" },
-  "Amount Raised": "$0"
-}
-
-
-
-PROMPT_PREFIX = """
-You are an expert at extracting structured data from investor pitch decks. For each deck, I will present the slide text. Return exactly one JSON object with these ten fields:
-{
-  "Startup Name": string or null,  # what is the most likely startup name? likely a single name most repeated in deck used to describe the company, not a short sentence
-  "Founding Year": string or null, # If no explicit “Founded in YYYY” appears, Scan all content for founding-year clues, including: • timeline or roadmap dates, • traction graphs captions, • team-bio phrasing, • funding-history dates. Determine the most probable calendar year in which the company was founded. If multiple plausible years appear, choose the earliest one that has at least one direct or indirect supporting signal.
-  "Founders": [string, ...] or null, # Who are the likely founders of this startup?
-  "Industry": string or null,       # one of: Fintech, Insurtech, Regtech, Healthtech, Medtech, Biotech, Pharmatech, Femtech, Eldertech, Proptech, Contech, Agtech, Foodtech, RestaurantTech, ClimateTech, CleanTech, EnergyTech, Greentech, Edtech, HRtech, Worktech, Martech, Adtech, RetailTech, Ecommerce, Marketplace, MobilityTech, Autotech, TransportTech, LogisticsTech, SupplyChainTech, TravelTech, SpaceTech, AerospaceTech, DefenceTech, SportTech, GamingTech, eSportsTech, MediaTech, StreamingTech, MusicTech, CreatorEconomyTech, SocialTech, Cybersecurity, AI, MachineLearning, BigData, AnalyticsTech, CloudTech, SaaS, DevOps, IoT, Robotics, HardwareTech, WearablesTech, 3DPrinting, AR/VR/XR, Metaverse, Web3, Blockchain, Crypto, NFT, QuantumTech, LegalTech, Govtech, CivicTech, NonprofitTech, ProductivityTech, CollaborationTech, PetTech, ElderCareTech etc.
-  "Niche": string or null,          # free-text description e.g. “crypto exchange”, “mobile betting”, “AI tutoring”
-  "USP": string or null,            # a single sentence from the deck that states the unique selling proposition
-  "Funding Stage": string or null,   # If no explicit round is mentioned, Scan the deck for the following signals: • capital sought, • traction metrics (users, revenue, growth), • product maturity, • team size & seniority, • prior funding, • planned use of funds, • target investors, • implied valuation. Using these signals and standard VC heuristics, decide the most probable funding round (Pre-seed, Seed, Series A, Series B, Series C or later).
-  "Current Revenue": string or null, # What is the revenue corresponding to the latest actual year in the financials, as opposed to future forecasts?
-  "Market": { "TAM": string or null, "SAM": string or null, "SOM": string or null } or null,
-  "Amount Raised": string or null,  # How much funds have this startup previously raised from investors since its inception? do not include the amount they want to raise in future
-}
-If any field is not present, set it to null.
-
----- EXAMPLE 1 ----
-Slide texts:
-""" + EXAMPLE_1_TEXT + """
-JSON answer:
-""" + json.dumps(EXAMPLE_1_JSON, indent=2) + """
-
----- EXAMPLE 2 ----
-Slide texts:
-""" + EXAMPLE_2_TEXT + """
-JSON answer:
-""" + json.dumps(EXAMPLE_2_JSON, indent=2) + """
-
----- NOW PROCESS THIS NEW DECK ----
-Slide texts:
-"""
-
-# ----------------------------------------
-
-def build_few_shot_prompt(deck_slide_text):
+# ─────────────────────────────────────────────────────────────────────────────
+# 3) HIDE “use_column_width” DEPRECATION WARNINGS VIA CSS
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown(
     """
-    Concatenate the prompt prefix (with Examples 1 & 2) and the new deck's slide text.
-    """
-    return PROMPT_PREFIX + deck_slide_text + "\nJSON answer:"
+    <style>
+        /* Hide yellow‐box deprecation warnings about use_column_width */
+        .stAlert, .stAlertWarning {
+            display: none;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-def call_chatgpt(prompt, api_key, model="gpt-4-turbo"):
+# ─────────────────────────────────────────────────────────────────────────────
+# 4) CUSTOM CSS FOR A SMOOTH LOOK
+# ─────────────────────────────────────────────────────────────────────────────
+def set_custom_styles():
+    css = """
+    <style>
+    .stApp {
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+    .block-container {
+        background-color: rgba(255, 255, 255, 0.95);
+        border-radius: 1rem;
+        padding: 2rem;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    }
+    h1 {
+        font-size: 24px !important;
+        font-weight: 700;
+    }
+    .uploaded-filename, .processing-msg, .success-msg, .extracted-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        margin-top: -0.1rem;
+        margin-bottom: 2.5rem;
+    }
+    .stButton>button {
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        border: none;
+        background-color: #3A86FF;
+        color: white;
+        font-weight: 600;
+        transition: 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #265DAB;
+        transform: scale(1.02);
+    }
+    .narrow-uploader {
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    div[data-testid="stFileUploader"] > div > div:nth-child(2),
+    div[data-testid="stFileUploader"] ul,
+    div[data-testid="stFileUploader"] li {
+        display: none !important;
+    }
+    .success-msg-container {
+        font-size: 14px;
+        font-weight: 500;
+        color: #222;
+        margin-top: -0.5rem;
+        margin-bottom: 3rem;
+    }
+    .extracted-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 0.8rem;
+    }
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+set_custom_styles()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5) APP TITLE & DESCRIPTION
+# ─────────────────────────────────────────────────────────────────────────────
+st.markdown('<h1>📊 Pitch Deck Extractor</h1>', unsafe_allow_html=True)
+st.markdown("""
+Upload one or more pitch‐deck PDFs. This tool leverages AI & heuristics to extract:
+**Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Current Revenue**, **Market Size**, and **Amount Raised**.
+""", unsafe_allow_html=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
+# ─────────────────────────────────────────────────────────────────────────────
+tab1, tab2 = st.tabs(["1️⃣ Library View", "2️⃣ Dashboard & Interactive Filtering"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 7) CACHE FUNCTION: EXTRACT & CALL CHATGPT EXACTLY ONCE PER PDF CONTENT
+# ─────────────────────────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def parse_deck_with_chatgpt(pdf_bytes: bytes) -> dict:
+    """
+    Given raw bytes of a PDF, extract its text, build a few‐shot prompt, call ChatGPT,
+    and return the parsed JSON. This is cached (keyed by pdf_bytes hash), so repeated
+    calls with identical PDF bytes will reuse the cached result instead of sending
+    a new request to OpenAI.
+    """
+    # 7a) Write the bytes to a temporary file (so extract_text can read it)
+    tmp_folder = "temp_cache"
+    os.makedirs(tmp_folder, exist_ok=True)
+    # Use a hash of PDF bytes as the temporary filename
+    digest = hashlib.sha256(pdf_bytes).hexdigest()
+    temp_path = os.path.join(tmp_folder, f"{digest}.pdf")
+    with open(temp_path, "wb") as f:
+        f.write(pdf_bytes)
+
+    # 7b) Extract all text from PDF
+    deck_text = extract_text_from_pdf(temp_path)
+    os.remove(temp_path)
+
+    # 7c) Build the few‐shot prompt & call ChatGPT
+    prompt = build_few_shot_prompt(deck_text)
+    result = call_chatgpt(prompt, api_key=openai_api_key)
+
+    # 7d) Normalize: ensure all expected keys exist
+    expected_keys = [
+        "StartupName", "Startup Name",
+        "FoundingYear", "Founding Year",
+        "Founders", "Industry", "Niche", "USP",
+        "FundingStage", "Funding Stage",
+        "CurrentRevenue", "Current Revenue",
+        "Market", "AmountRaised", "Amount Raised"
+    ]
+
+    normalized = {}
+
+    # We prefer the underscored key (e.g. “StartupName”) if present, else the spaced one.
+    # Then we rename everything to our “Library View” column names.
+    normalized["Startup Name"]    = result.get("StartupName") or result.get("Startup Name") or None
+    normalized["Founding Year"]   = result.get("FoundingYear") or result.get("Founding Year") or None
+    normalized["Founders"]        = result.get("Founders") or []
+    normalized["Industry"]        = result.get("Industry") or None
+    normalized["Niche"]           = result.get("Niche") or None
+    normalized["USP"]             = result.get("USP") or None
+    normalized["Funding Stage"]   = result.get("FundingStage") or result.get("Funding Stage") or None
+    normalized["Current Revenue"] = result.get("CurrentRevenue") or result.get("Current Revenue") or None
+    normalized["Amount Raised"]   = result.get("AmountRaised") or result.get("Amount Raised") or None
+
+    # Normalize market sub‐keys
+    m = result.get("Market") or {}
+    normalized["Market"] = {
+        "TAM": m.get("TAM") or None,
+        "SAM": m.get("SAM") or None,
+        "SOM": m.get("SOM") or None
+    }
+
+    # Keep the raw JSON as well
+    normalized["__raw_json"] = result
+    return normalized
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 8) TAB 1: LIBRARY VIEW → UPLOAD + PARSE (CACHED) + RENDER
+# ─────────────────────────────────────────────────────────────────────────────
+with tab1:
+    # 8a) FILE UPLOADER (centered)
+    st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
+    uploaded_files = st.file_uploader(
+        "Drag & drop PDF(s) here (or click to browse)", 
+        type=["pdf"], 
+        accept_multiple_files=True
+    )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Prepare containers for results
+    all_metadata = []         # List of dicts to build our “Library” DataFrame
+    pdf_buffers    = {}       # Map filename → raw PDF bytes for later “key slide” preview
+
+    if uploaded_files:
+        with st.spinner("🔎 Analyzing pitch decks..."):
+            for pdf_file in uploaded_files:
+                filename = pdf_file.name
+                st.markdown(
+                    f'<div class="uploaded-filename">Processing <strong>{filename}</strong>…</div>',
+                    unsafe_allow_html=True,
+                )
+                raw_bytes = pdf_file.read()
+
+                # 8b) Invoke cached function parse_deck_with_chatgpt(raw_bytes)
+                #     → if this exact PDF‐bytes has already been parsed, no new cost.
+                metadata = parse_deck_with_chatgpt(raw_bytes)
+
+                # Attach filename & store
+                metadata["Filename"] = filename
+                all_metadata.append(metadata)
+
+                # Store PDF bytes for key‐slide preview
+                pdf_buffers[filename] = raw_bytes
+
+        # 8c) DISPLAY LIBRARY TABLE + EXPORT BUTTONS
+        if all_metadata:
+            st.markdown(
+                """
+                <div class="success-msg-container">
+                    ✅ All pitch decks processed successfully!
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # Build DataFrame for “Library View”
+            rows = []
+            for rec in all_metadata:
+                row = {
+                    "Filename": rec["Filename"],
+                    "Startup Name": rec["Startup Name"],
+                    "Founding Year": rec["Founding Year"],
+                    "Founders": "; ".join(rec["Founders"]),
+                    "Industry": rec["Industry"],
+                    "Niche": rec["Niche"],
+                    "USP": rec["USP"],
+                    "Funding Stage": rec["Funding Stage"],
+                    "Current Revenue": rec["Current Revenue"],
+                    "Amount Raised": rec["Amount Raised"],
+                    "TAM": rec["Market"]["TAM"],
+                    "SAM": rec["Market"]["SAM"],
+                    "SOM": rec["Market"]["SOM"],
+                }
+                rows.append(row)
+
+            df = pd.DataFrame(rows)
+
+            st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
+            st.dataframe(df, use_container_width=True)
+
+            # EXPORT BUTTONS
+            json_str  = json.dumps([rec["__raw_json"] for rec in all_metadata], indent=2)
+            csv_bytes = df.to_csv(index=False).encode("utf-8")
+
+            c1, c2 = st.columns(2)
+            with c1:
+                st.download_button(
+                    label="📥 Export as JSON",
+                    data=json_str,
+                    file_name="All_decks.json",
+                    mime="application/json",
+                )
+            with c2:
+                st.download_button(
+                    label="📊 Export as CSV",
+                    data=csv_bytes,
+                    file_name="All_decks.csv",
+                    mime="text/csv",
+                )
+
+            st.markdown("---")
+
+            # 8d) KEY SLIDE PREVIEW (CHATGPT‐DRIVEN PAGE NUMBERS)
+            st.markdown("### 🔑 Key Slide Preview")
+            st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
+
+            selected_deck = st.selectbox(
+                "❓ Which Deck would you like to preview?",
+                options=df["Filename"].tolist()
+            )
+
+            if selected_deck:
+                pdf_bytes = pdf_buffers[selected_deck]
+                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+
+                # 8d‐i) Extract text for each page
+                page_texts = [page.get_text() for page in doc]
+
+                # 8d‐ii) Ask ChatGPT to identify key pages (Team, Market, Traction)
+                key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
+
+                # Convert 1-indexed pages to 0-indexed
+                raw_team     = key_info.get("TeamPage")
+                raw_market   = key_info.get("MarketPage")
+                raw_traction = key_info.get("TractionPage")
+                team_idx     = (int(raw_team) - 1) if raw_team else None
+                market_idx   = (int(raw_market) - 1) if raw_market else None
+                traction_idx = (int(raw_traction) - 1) if raw_traction else None
+
+                # Build a list of (label, page_index) for whichever exist
+                key_slides = []
+                if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
+                    key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
+                if isinstance(market_idx, int) and 0 <= market_idx < doc.page_count:
+                    key_slides.append((f"Market Slide (page {market_idx+1})", market_idx))
+                if isinstance(traction_idx, int) and 0 <= traction_idx < doc.page_count:
+                    key_slides.append((f"Traction Slide (page {traction_idx+1})", traction_idx))
+
+                if not key_slides:
+                    st.warning("⚠️ ChatGPT did not locate Team/Market/Traction slides in this deck.")
+                else:
+                    cols = st.columns(len(key_slides))
+                    for col, (label, page_index) in zip(cols, key_slides):
+                        page = doc[page_index]
+                        pix = page.get_pixmap(dpi=100)
+                        img_bytes = pix.tobytes("png")  # render as PNG
+                        col.image(img_bytes, caption=label, use_container_width=True)
+
+                doc.close()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 9) TAB 2: DASHBOARD & INTERACTIVE FILTERING
+# ─────────────────────────────────────────────────────────────────────────────
+with tab2:
+    st.markdown("## 📊 Dashboard & Interactive Filtering")
+
+    # If no PDF has been processed yet, prompt the user to go back to Tab 1
+    if "all_metadata" not in locals() or not all_metadata:
+        st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
+    else:
+        # Build a smaller DataFrame for filtering/charts
+        rows2 = []
+        for rec in all_metadata:
+            startup_name  = rec["Startup Name"]
+            # Convert founding year to int if possible
+            fy = rec["Founding Year"]
+            try:
+                fy = int(fy)
+            except:
+                fy = None
+            industry      = rec["Industry"]
+            funding_stage = rec["Funding Stage"]
+
+            rows2.append({
+                "Filename": rec["Filename"],
+                "Startup Name": startup_name,
+                "Founding Year": fy,
+                "Industry": industry,
+                "Funding Stage": funding_stage
+            })
+
+        df2 = pd.DataFrame(rows2)
+
+        # ── Sidebar Filters ──────────────────────────────────────────────────
+        st.sidebar.header("🔎 Filters")
+
+        all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
+        sel_industries = st.sidebar.multiselect("Industry", options=all_industries, default=all_industries)
+
+        valid_years = df2["Founding Year"].dropna().astype(int)
+        if not valid_years.empty:
+            min_year = int(valid_years.min())
+            max_year = int(valid_years.max())
+            sel_year_range = st.sidebar.slider(
+                "Founding Year Range",
+                min_value=min_year,
+                max_value=max_year,
+                value=(min_year, max_year),
+            )
+        else:
+            sel_year_range = (0, 9999)
+
+        all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
+        sel_stages = st.sidebar.multiselect("Funding Stage", options=all_stages, default=all_stages)
+
+        # ── Apply Filters ────────────────────────────────────────────────────
+        if valid_years.empty:
+            filtered = df2[
+                (df2["Industry"].isin(sel_industries)) &
+                (df2["Funding Stage"].isin(sel_stages))
+            ]
+        else:
+            filtered = df2[
+                (df2["Industry"].isin(sel_industries)) &
+                (df2["Funding Stage"].isin(sel_stages)) &
+                (df2["Founding Year"].between(sel_year_range[0], sel_year_range[1]))
+            ]
+
+        st.markdown(f"#### 🔍 {filtered.shape[0]} startups match your filters")
+
+        if not filtered.empty:
+            # Industry Breakdown (bar chart)
+            st.markdown("**Industry Breakdown**")
+            industry_counts = filtered["Industry"].value_counts()
+            st.bar_chart(industry_counts)
+
+            # Founding Year Distribution (bar chart)
+            st.markdown("**Founding Year Distribution**")
+            year_counts = filtered["Founding Year"].value_counts().sort_index()
+            st.bar_chart(year_counts)
+
+            # Funding Stage Breakdown (bar chart)
+            st.markdown("**Funding Stage Breakdown**")
+            stage_counts = filtered["Funding Stage"].value_counts()
+            st.bar_chart(stage_counts)
+
+        st.markdown("---")
+        st.markdown("### 💾 Filtered Results Table")
+        st.dataframe(filtered, use_container_width=True)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10) HELPER FUNCTION: ASK CHATGPT FOR KEY SLIDE PAGES
+# ─────────────────────────────────────────────────────────────────────────────
+def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
+    """
+    Given a list of page_texts, ask ChatGPT: "Which page # is Team / Market / Traction?"
+    Returns e.g. {"TeamPage": 7, "MarketPage": 5, "TractionPage": 15} or nulls if no match.
+    """
+    prompt_lines = [
+        "I will give you short text snippets from each slide of a pitch deck, one snippet per page. "
+        "Identify EXACTLY which page number (1-indexed) is the Team slide, "
+        "which page is the Market slide, and which page is the Traction slide. "
+        "If you cannot find one of those categories, return null for that field. "
+        "Answer in JSON format like:\n",
+        "{\n"
+        '  "TeamPage": 7,\n'
+        '  "MarketPage": 5,\n'
+        '  "TractionPage": 15\n'
+        "}\n"
+    ]
+
+    # Append each page’s snippet (first 200 chars) to the prompt
+    for i, text in enumerate(page_texts):
+        snippet = text.replace("\n", " ").strip()[:200]
+        prompt_lines.append(f"---\nPage {i+1}:\n{snippet}\n")
+
+    final_prompt = "\n".join(prompt_lines)
     client = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": prompt}],
+        model="gpt-3.5-turbo",
+        messages=[{"role": "user", "content": final_prompt}],
         temperature=0.0,
-        max_tokens=800
+        max_tokens=200,
     )
-
     content = response.choices[0].message.content.strip()
 
-    # Parse out the JSON
     try:
         return json.loads(content)
     except json.JSONDecodeError:
         start = content.find("{")
         end = content.rfind("}") + 1
         if start != -1 and end != -1:
-            return json.loads(content[start:end])
-        raise ValueError(f"Could not parse JSON from response:\n{content}")
-
-if __name__ == "__main__":
-    for fname in os.listdir(INPUT_FOLDER):
-        if not fname.lower().endswith(".pdf"):
-            continue
-
-        pdf_path = os.path.join(INPUT_FOLDER, fname)
-        # print(f"Processing {fname}…")
-
-        # 1) Extract slide text
-        deck_text = extract_text_from_pdf(pdf_path)
-
-        # 2) Build few-shot prompt
-        prompt = build_few_shot_prompt(deck_text)
-
-        # 3) Call ChatGPT
-        try:
-            result = call_chatgpt(prompt)
-        except Exception as e:
-            print(f"  Error calling ChatGPT for {fname}: {e}")
-            continue
-
-        # 4) Write output JSON
-                # 4) Post-process & write output JSON
-        # Ensure all ten fields exist; if missing, set to null
-        expected_keys = [
-            "Startup Name", "Founding Year", "Founders", "Industry", 
-            "Niche", "USP", "Funding Stage", "Current Revenue", "Market","Amount Raised"
-        ]
-        normalized = {}
-        for key in expected_keys:
-            normalized[key] = result.get(key, None)
-        # Ensure Market itself has TAM/SAM/SOM
-        if isinstance(normalized["Market"], dict):
-            for sub in ["TAM", "SAM", "SOM"]:
-                if sub not in normalized["Market"]:
-                    normalized["Market"][sub] = None
-        else:
-            normalized["Market"] = {"TAM": None, "SAM": None, "SOM": None}
-
-        base = os.path.splitext(fname)[0]
-        out_path = os.path.join(OUTPUT_FOLDER, f"{base}_parsed.json")
-        with open(out_path, "w", encoding="utf-8") as fout:
-            json.dump(normalized, fout, indent=2)
-        print(f"  → Saved {base}_parsed.json\n")
+            try:
+                return json.loads(content[start:end])
+            except:
+                pass
+        return {"TeamPage": None, "MarketPage": None, "TractionPage": None}
