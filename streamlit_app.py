@@ -279,7 +279,7 @@ with tab1:
             startup_names = df["Startup Name"].dropna().unique().tolist()
             
             startups_to_remove = st.multiselect(
-                "❌ Select startups to remove from the table (optional):",
+                "Select startups to remove:",
                 options=startup_names,
                 help="Use this to filter out any startups you don't want included in the results or exports."
             )
