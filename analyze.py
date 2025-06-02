@@ -105,16 +105,16 @@ EXAMPLE_2_JSON = {
 PROMPT_PREFIX = """
 You are an expert at extracting structured data from investor pitch decks. For each deck, I will present the slide text. Return exactly one JSON object with these ten fields:
 {
-  "Startup Name": string or null,  # what is the likely startup name?
+  "Startup Name": string or null,  # what is the most likely startup name? likely a single name most repeated in deck used to describe the company, not a short sentence
   "Founding Year": string or null, # If no explicit “Founded in YYYY” appears, Scan all content for founding-year clues, including: • timeline or roadmap dates, • traction graphs captions, • team-bio phrasing, • funding-history dates. Determine the most probable calendar year in which the company was founded. If multiple plausible years appear, choose the earliest one that has at least one direct or indirect supporting signal.
-  "Founders": [string, ...] or null,
+  "Founders": [string, ...] or null, # Who are the likely founders of this startup?
   "Industry": string or null,       # one of: Fintech, Insurtech, Regtech, Healthtech, Medtech, Biotech, Pharmatech, Femtech, Eldertech, Proptech, Contech, Agtech, Foodtech, RestaurantTech, ClimateTech, CleanTech, EnergyTech, Greentech, Edtech, HRtech, Worktech, Martech, Adtech, RetailTech, Ecommerce, Marketplace, MobilityTech, Autotech, TransportTech, LogisticsTech, SupplyChainTech, TravelTech, SpaceTech, AerospaceTech, DefenceTech, SportTech, GamingTech, eSportsTech, MediaTech, StreamingTech, MusicTech, CreatorEconomyTech, SocialTech, Cybersecurity, AI, MachineLearning, BigData, AnalyticsTech, CloudTech, SaaS, DevOps, IoT, Robotics, HardwareTech, WearablesTech, 3DPrinting, AR/VR/XR, Metaverse, Web3, Blockchain, Crypto, NFT, QuantumTech, LegalTech, Govtech, CivicTech, NonprofitTech, ProductivityTech, CollaborationTech, PetTech, ElderCareTech etc.
   "Niche": string or null,          # free-text description e.g. “crypto exchange”, “mobile betting”, “AI tutoring”
   "USP": string or null,            # a single sentence from the deck that states the unique selling proposition
   "Funding Stage": string or null,   # If no explicit round is mentioned, Scan the deck for the following signals: • capital sought, • traction metrics (users, revenue, growth), • product maturity, • team size & seniority, • prior funding, • planned use of funds, • target investors, • implied valuation. Using these signals and standard VC heuristics, decide the most probable funding round (Pre-seed, Seed, Series A, Series B, Series C or later).
   "Current Revenue": string or null, # What is the revenue corresponding to the latest actual year in the financials, as opposed to future forecasts?
   "Market": { "TAM": string or null, "SAM": string or null, "SOM": string or null } or null,
-  "Amount Raised": string or null,  # How much funds has this startup previously raised from investors since its inception? do not include the amount they want to raise in future
+  "Amount Raised": string or null,  # How much funds have this startup previously raised from investors since its inception? do not include the amount they want to raise in future
 }
 If any field is not present, set it to null.
 
