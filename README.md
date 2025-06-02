@@ -28,7 +28,7 @@ The results are presented in a searchable table, can be exported (CSV/JSON), and
 
 ```bash
 git clone https://github.com/yourusername/pitch-deck-extractor.git
-cd pitch-deck-extractor```
+cd pitch-deck-extractor ```
 
 ### 2. Install Dependencies
 
