@@ -16,11 +16,11 @@ This tool ingests investor pitch‐deck PDFs, sends slide text to a few‐shot C
 The results are presented in a searchable table, can be exported (CSV/JSON), and preview key slides (Team, Market, Traction) using GPT-based heuristics.
 
 ## Features
--Few-shot GPT prompting to extract structured JSON from unstructured pitch deck text.
--PDF rendering with PyMuPDF to preview selected slides.
--Interactive dashboard with filters by industry, funding stage, and founding year.
--Streamlit UI with two views: Library and Dashboard.
--Export results as CSV or JSON.
+- Few-shot GPT prompting to extract structured JSON from unstructured pitch deck text.
+- PDF rendering with PyMuPDF to preview selected slides.
+- Interactive dashboard with filters by industry, funding stage, and founding year.
+- Streamlit UI with two views: Library and Dashboard.
+- Export results as CSV or JSON.
 
 ## Installation
 
@@ -28,7 +28,7 @@ The results are presented in a searchable table, can be exported (CSV/JSON), and
 
 ```bash
 git clone https://github.com/yourusername/pitch-deck-extractor.git
-cd pitch-deck-extractor
+cd pitch-deck-extractor```
 
 ### 2. Install Dependencies
 
