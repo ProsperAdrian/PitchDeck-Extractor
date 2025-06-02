@@ -102,7 +102,7 @@ def set_custom_styles():
         margin-bottom: 3rem;
     }}
     .extracted-title {{
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 600;
         margin-bottom: 0.8rem;
     }}
