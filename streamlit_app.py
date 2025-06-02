@@ -272,11 +272,14 @@ with tab1:
                 rows.append(row)
 
             df = pd.DataFrame(rows)
-            st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
 
+            # 🔻 INSERT THIS BLOCK RIGHT HERE
+            startup_names = df["Startup Name"].dropna().unique().tolist()
+            
             startups_to_remove = st.multiselect(
-                "❌ Select startups to remove from the table:",
-                options=startup_names
+                "❌ Select startups to remove from the table (optional):",
+                options=startup_names,
+                help="Use this to filter out any startups you don't want included in the results or exports."
             )
             
             if startups_to_remove:
@@ -285,7 +288,9 @@ with tab1:
                     rec for rec in all_results
                     if (rec.get("StartupName") or rec.get("Startup Name")) not in startups_to_remove
                 ]
+            # 🔺 END OF INSERTED BLOCK
             
+            st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
             st.dataframe(df, use_container_width=True)
 
             # EXPORT BUTTONS: JSON + CSV
