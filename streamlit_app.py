@@ -112,6 +112,49 @@ def set_custom_styles():
 
 set_custom_styles()
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# (Insert this right after your set_custom_styles() call)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Override Streamlit’s dark mode colors for DataFrames and container backgrounds
+LIGHT_OVERRIDE_CSS = """
+<style>
+    /* Force the main block container to stay white in dark mode */
+    .block-container {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    /* Force DataFrame cells to have a white background and black text */
+    .stDataFrame table {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    .stDataFrame th,
+    .stDataFrame td {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    /* Adjust the header row in dark mode */
+    .stDataFrame th {
+        background-color: #f0f0f0 !important;
+        color: #000000 !important;
+    }
+    /* Make sure the multiselect, selectbox, and download buttons also remain in light style */
+    .stSelectbox, .stMultiSelect, .stDownloadButton {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    /* Force the sidebar to stay light as well (so filters remain readable) */
+    [data-testid="stSidebar"] .css-1v3fvcr {
+        background-color: #fafafa !important;
+        color: #000000 !important;
+    }
+</style>
+"""
+st.markdown(LIGHT_OVERRIDE_CSS, unsafe_allow_html=True)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
 # ─────────────────────────────────────────────────────────────────────────────
