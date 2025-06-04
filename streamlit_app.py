@@ -112,20 +112,30 @@ def set_custom_styles():
 
 set_custom_styles()
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# (Insert this right after your set_custom_styles() call)
+# (Insert this right after set_custom_styles())
 # ─────────────────────────────────────────────────────────────────────────────
-
-# Override Streamlit’s dark mode colors for DataFrames and container backgrounds
 LIGHT_OVERRIDE_CSS = """
 <style>
-    /* Force the main block container to stay white in dark mode */
+    /* 1) Keep the main container white and text black in dark mode */
     .block-container {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* Force DataFrame cells to have a white background and black text */
+
+    /* 2) Force ALL Markdown/text elements to be black */
+    [data-testid="stAppViewContainer"] .stMarkdown, 
+    [data-testid="stAppViewContainer"] .stText, 
+    [data-testid="stAppViewContainer"] .css-1hsw27k, 
+    [data-testid="stAppViewContainer"] h1, 
+    [data-testid="stAppViewContainer"] h2, 
+    [data-testid="stAppViewContainer"] h3, 
+    [data-testid="stAppViewContainer"] p, 
+    [data-testid="stAppViewContainer"] span {
+        color: #000000 !important;
+    }
+
+    /* 3) Force DataFrame cells to white background and black text */
     .stDataFrame table {
         background-color: #ffffff !important;
         color: #000000 !important;
@@ -135,18 +145,21 @@ LIGHT_OVERRIDE_CSS = """
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* Adjust the header row in dark mode */
     .stDataFrame th {
         background-color: #f0f0f0 !important;
         color: #000000 !important;
     }
-    /* Make sure the multiselect, selectbox, and download buttons also remain in light style */
-    .stSelectbox, .stMultiSelect, .stDownloadButton {
+
+    /* 4) Make multiselect, selectbox, and download buttons light‐themed */
+    .stSelectbox, 
+    .stMultiSelect, 
+    .stDownloadButton {
         background-color: #ffffff !important;
         color: #000000 !important;
     }
-    /* Force the sidebar to stay light as well (so filters remain readable) */
-    [data-testid="stSidebar"] .css-1v3fvcr {
+
+    /* 5) Keep the sidebar itself light, so filters remain readable */
+    [data-testid="stSidebar"] {
         background-color: #fafafa !important;
         color: #000000 !important;
     }
