@@ -59,7 +59,6 @@ def set_custom_styles():
         border-radius: 1rem;
         padding: 2rem;
         box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-        min-height: 100vh;
     }}
     h1 {{
         font-size: 24px !important;
@@ -112,43 +111,6 @@ def set_custom_styles():
     st.markdown(custom_css, unsafe_allow_html=True)
 
 set_custom_styles()
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 4.8) FORCE FILE‐UPLOADER INTO A LIGHT CARD
-# ─────────────────────────────────────────────────────────────────────────────
-FORCE_UPLOADER_LIGHT = """
-<style>
-  /* Uploader wrapper */
-  div[data-testid="stFileUploader"] {
-    background-color: #f0f2f6 !important; /* same light grey as default Light mode */
-    border-radius: 0.5rem !important;
-    padding: 1rem !important;
-    color: #000000 !important;
-  }
-
-  /* Hide the “add files” list when empty */
-  div[data-testid="stFileUploader"] > div > div:nth-child(2),
-  div[data-testid="stFileUploader"] ul,
-  div[data-testid="stFileUploader"] li {
-    display: none !important;
-  }
-
-  /* The drag-and-drop prompt */
-  div[data-testid="stFileUploader"] span,
-  div[data-testid="stFileUploader"] label {
-    color: #000000 !important;
-  }
-
-  /* The “Browse files” button */
-  div[data-testid="stFileUploader"] button {
-    background-color: #ffffff !important;
-    color: #000000 !important;
-    border: 1px solid #ccc !important;
-  }
-</style>
-"""
-st.markdown(FORCE_UPLOADER_LIGHT, unsafe_allow_html=True)
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
@@ -210,7 +172,7 @@ def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
     try:
         return json.loads(content)
     except json.JSONDecodeError:
-        # Fallback: find the `{…}` block and parse it
+        # Fallback: find the {…} block and parse it
         start = content.find("{")
         end = content.rfind("}") + 1
         if start != -1 and end != -1:
