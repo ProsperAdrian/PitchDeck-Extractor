@@ -1,6 +1,3 @@
-[media pointer="file-service://file-WVZB9o1Xfvx9e4G54zf26Q"]
-this is the final code: 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # streamlit_app.py
 #
@@ -494,6 +491,3 @@ with tab2:
         # ------- Display Filtered Table -------
         st.markdown("##### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
-
-
-however this does not work when the devise is in dark mode. see the image attached. 
