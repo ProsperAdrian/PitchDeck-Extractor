@@ -60,26 +60,6 @@ def set_custom_styles():
         padding: 2rem;
         box-shadow: 0 8px 30px rgba(0,0,0,0.1);
     }}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
     h1 {{
         font-size: 28px !important;
         font-weight: 700;
