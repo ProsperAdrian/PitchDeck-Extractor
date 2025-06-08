@@ -112,6 +112,16 @@ def set_custom_styles():
 
 set_custom_styles()
 
+st.markdown("""
+    <style>
+    /* Narrow dropdowns in the main view (not sidebar) */
+    div[data-baseweb="select"] {
+        max-width: 400px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
 # ─────────────────────────────────────────────────────────────────────────────
