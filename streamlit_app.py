@@ -65,8 +65,8 @@ def set_custom_styles():
         font-weight: 700;
     }}
     .uploaded-filename, .processing-msg, .success-msg, .extracted-title {{
-        font-size: 20px;
-        font-weight: 700;
+        font-size: 14px;
+        font-weight: 500;
         color: #222;
         margin-top: -0.1rem;
         margin-bottom: 2.5rem;
@@ -102,7 +102,7 @@ def set_custom_styles():
         margin-bottom: 1rem;
     }}
     .extracted-title {{
-        font-size: 18px;
+        font-size: 20px;
         font-weight: 600;
         margin-bottom: 0.8rem;
     }}
@@ -136,7 +136,7 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown('<h1>📊 Pitch Deck Analysis</h1>', unsafe_allow_html=True)
+st.markdown('<h1>⊞ Pitch Deck Analysis</h1>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to extract:
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
