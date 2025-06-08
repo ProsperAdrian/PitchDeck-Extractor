@@ -116,7 +116,7 @@ st.markdown("""
     <style>
     /* Narrow dropdowns in the main view (not sidebar) */
     div[data-baseweb="select"] {
-        max-width: 600px !important;
+        max-width: 400px !important;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -125,7 +125,7 @@ st.markdown("""
     <style>
     /* Reduce width of file uploader */
     div[data-testid="stFileUploader"] {
-        max-width: 400px;
+        max-width: 600px;
         margin-left: 0;  /* optional: align left */
     }
     </style>
