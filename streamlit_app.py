@@ -120,6 +120,16 @@ st.markdown("""
 Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to extract:
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
 """, unsafe_allow_html=True)
+st.markdown("""
+    <style>
+    div[data-baseweb="select"] {
+        width: 200px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+selected_option = st.selectbox("Choose a startup to remove:", options=your_options_list)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
