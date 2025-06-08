@@ -136,7 +136,7 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown('<h1>❖Pitch Deck Analysis</h1>', unsafe_allow_html=True)
+st.markdown('<h1>❖ Pitch Deck Analysis</h1>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to extract:
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
