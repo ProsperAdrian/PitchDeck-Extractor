@@ -323,7 +323,7 @@ with tab1:
             col1, col2, _ = st.columns([1, 1, 6])
             with col1:
                 st.download_button(
-                    label="Export JSON »",
+                    label="Export JSON ➜",
                     data=json_str,
                     file_name="All_decks.json",
                     mime="application/json",
