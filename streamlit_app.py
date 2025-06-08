@@ -99,7 +99,7 @@ def set_custom_styles():
         font-weight: 500;
         color: #222;
         margin-top: -0.5rem;
-        margin-bottom: 3rem;
+        margin-bottom: 2rem;
     }}
     .extracted-title {{
         font-size: 18px;
