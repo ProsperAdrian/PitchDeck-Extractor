@@ -59,6 +59,7 @@ def set_custom_styles():
         border-radius: 1rem;
         padding: 2rem;
         box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        min-height: 100vh;
     }}
     h1 {{
         font-size: 24px !important;
@@ -111,6 +112,62 @@ def set_custom_styles():
     st.markdown(custom_css, unsafe_allow_html=True)
 
 set_custom_styles()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# (Insert this right after set_custom_styles())
+# ─────────────────────────────────────────────────────────────────────────────
+LIGHT_OVERRIDE_CSS = """
+<style>
+    /* 1) Keep the main container white and text black in dark mode */
+    .block-container {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    /* 2) Force ALL Markdown/text elements to be black */
+    [data-testid="stAppViewContainer"] .stMarkdown, 
+    [data-testid="stAppViewContainer"] .stText, 
+    [data-testid="stAppViewContainer"] .css-1hsw27k, 
+    [data-testid="stAppViewContainer"] h1, 
+    [data-testid="stAppViewContainer"] h2, 
+    [data-testid="stAppViewContainer"] h3, 
+    [data-testid="stAppViewContainer"] p, 
+    [data-testid="stAppViewContainer"] span {
+        color: #000000 !important;
+    }
+
+    /* 3) Force DataFrame cells to white background and black text */
+    .stDataFrame table {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    .stDataFrame th,
+    .stDataFrame td {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+    .stDataFrame th {
+        background-color: #f0f0f0 !important;
+        color: #000000 !important;
+    }
+
+    /* 4) Make multiselect, selectbox, and download buttons light‐themed */
+    .stSelectbox, 
+    .stMultiSelect, 
+    .stDownloadButton {
+        background-color: #ffffff !important;
+        color: #000000 !important;
+    }
+
+    /* 5) Keep the sidebar itself light, so filters remain readable */
+    [data-testid="stSidebar"] {
+        background-color: #fafafa !important;
+        color: #000000 !important;
+    }
+</style>
+"""
+st.markdown(LIGHT_OVERRIDE_CSS, unsafe_allow_html=True)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
