@@ -323,14 +323,14 @@ with tab1:
             col1, col2 = st.columns(2)
             with col1:
                 st.download_button(
-                    label="📥 Export as JSON",
+                    label="📥 Download JSON",
                     data=json_str,
                     file_name="All_decks.json",
                     mime="application/json",
                 )
             with col2:
                 st.download_button(
-                    label="📊 Export as CSV",
+                    label="📊 Download CSV",
                     data=csv_bytes,
                     file_name="All_decks.csv",
                     mime="text/csv",
