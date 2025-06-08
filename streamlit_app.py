@@ -320,7 +320,7 @@ with tab1:
             json_str  = json.dumps(all_results, indent=2)
             csv_bytes = df.to_csv(index=False).encode("utf-8")
 
-            col1, col2, _ = st.columns([1, 1, 3])
+            col1, col2, _ = st.columns([1, 1, 2])
             with col1:
                 st.download_button(
                     label="📥 Download JSON",
