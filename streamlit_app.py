@@ -330,7 +330,7 @@ with tab1:
                 )
             with col2:
                 st.download_button(
-                    label="⬇ Export CSV",
+                    label="Export CSV ➜",
                     data=csv_bytes,
                     file_name="All_decks.csv",
                     mime="text/csv",
