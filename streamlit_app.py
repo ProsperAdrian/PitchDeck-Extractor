@@ -260,7 +260,7 @@ with tab1:
                 """,
                 unsafe_allow_html=True,
             )
-
+st.markdown("---")
             # Build a Pandas DataFrame of extracted fields
             rows = []
             for rec in all_results:
