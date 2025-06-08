@@ -113,83 +113,41 @@ def set_custom_styles():
 
 set_custom_styles()
 
-LIGHT_OVERRIDE_CSS = """
+# ─────────────────────────────────────────────────────────────────────────────
+# 4.8) FORCE FILE‐UPLOADER INTO A LIGHT CARD
+# ─────────────────────────────────────────────────────────────────────────────
+FORCE_UPLOADER_LIGHT = """
 <style>
-    /* 1) Keep the main container white and text black in dark mode */
-    .block-container {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-
-    /* 2) Force ALL Markdown/text elements to be black */
-    [data-testid="stAppViewContainer"] .stMarkdown, 
-    [data-testid="stAppViewContainer"] .stText, 
-    [data-testid="stAppViewContainer"] .css-1hsw27k, 
-    [data-testid="stAppViewContainer"] h1, 
-    [data-testid="stAppViewContainer"] h2, 
-    [data-testid="stAppViewContainer"] h3, 
-    [data-testid="stAppViewContainer"] p, 
-    [data-testid="stAppViewContainer"] span {
-        color: #000000 !important;
-    }
-
-    /* 3) Force DataFrame cells to white background and black text */
-    .stDataFrame table {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-    .stDataFrame th,
-    .stDataFrame td {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-    .stDataFrame th {
-        background-color: #f0f0f0 !important;
-        color: #000000 !important;
-    }
-
-    /* 4) Make multiselect, selectbox, and download buttons light‐themed */
-    .stSelectbox, 
-    .stMultiSelect, 
-    .stDownloadButton {
-        background-color: #ffffff !important;
-        color: #000000 !important;
-    }
-
-    /* 5) Keep the sidebar itself light, so filters remain readable */
-    [data-testid="stSidebar"] {
-        background-color: #fafafa !important;
-        color: #000000 !important;
-    }
-</style>
-"""
-st.markdown(LIGHT_OVERRIDE_CSS, unsafe_allow_html=True)
-
-
-THEME_UPLOAD_CSS = """
-<style>
-  /* Dark mode: make every text inside the uploader white */
-  html[data-theme="dark"] div[data-testid="stFileUploader"] {
-    color: #ffffff !important;
-  }
-  html[data-theme="dark"] div[data-testid="stFileUploader"] *,
-  html[data-theme="dark"] div[data-testid="stFileUploader"] label,
-  html[data-theme="dark"] div[data-testid="stFileUploader"] span {
-    color: #ffffff !important;
-  }
-
-  /* Light mode: force it back to black */
-  html[data-theme="light"] div[data-testid="stFileUploader"] {
+  /* Uploader wrapper */
+  div[data-testid="stFileUploader"] {
+    background-color: #f0f2f6 !important; /* same light grey as default Light mode */
+    border-radius: 0.5rem !important;
+    padding: 1rem !important;
     color: #000000 !important;
   }
-  html[data-theme="light"] div[data-testid="stFileUploader"] *,
-  html[data-theme="light"] div[data-testid="stFileUploader"] label,
-  html[data-theme="light"] div[data-testid="stFileUploader"] span {
+
+  /* Hide the “add files” list when empty */
+  div[data-testid="stFileUploader"] > div > div:nth-child(2),
+  div[data-testid="stFileUploader"] ul,
+  div[data-testid="stFileUploader"] li {
+    display: none !important;
+  }
+
+  /* The drag-and-drop prompt */
+  div[data-testid="stFileUploader"] span,
+  div[data-testid="stFileUploader"] label {
     color: #000000 !important;
+  }
+
+  /* The “Browse files” button */
+  div[data-testid="stFileUploader"] button {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    border: 1px solid #ccc !important;
   }
 </style>
 """
-st.markdown(THEME_UPLOAD_CSS, unsafe_allow_html=True)
+st.markdown(FORCE_UPLOADER_LIGHT, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
