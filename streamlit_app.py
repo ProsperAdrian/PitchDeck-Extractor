@@ -68,39 +68,6 @@ def set_custom_styles():
 
 
 
-      /* 2) Wipe out the card-like block-container so it spans the full viewport */
-      .block-container {{
-        max-width: none !important;      /* no max width */
-        padding: 0 !important;           /* no inner padding */
-        margin: 0 !important;            /* no auto margins */
-        min-height: 100vh !important;    /* at least full viewport height */
-        border-radius: 0 !important;     /* remove those rounded corners */
-        box-shadow: none !important;     /* remove the floating shadow */
-        background-color: rgba(255,255,255,0.95) !important; /* optional: keep a slight white overlay */
-      }}
-
-      /* 3) Center the uploader in a full-height flex container */
-      .narrow-uploader {{
-        height: 100vh;                   /* fill full viewport height */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }}
-
-      /* 4) Update your buttons (hover too) */
-      .stButton>button {{
-        background-color: var(--primary-color) !important;
-        color: white !important;
-      }}
-      .stButton>button:hover {{
-        background-color: #003CAA !important;
-      }}
-
-
-
-
-
-
 
 
 
