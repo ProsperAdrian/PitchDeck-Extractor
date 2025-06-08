@@ -294,7 +294,7 @@ with tab1:
 
             df = pd.DataFrame(rows)
             
-            st.markdown('<div class="extracted-title">📑 Library</div>', unsafe_allow_html=True)
+            st.markdown('<div class="extracted-title">Library</div>', unsafe_allow_html=True)
 
             # 🔻 INSERT THIS BLOCK RIGHT HERE
             startup_names = df["Startup Name"].dropna().unique().tolist()
