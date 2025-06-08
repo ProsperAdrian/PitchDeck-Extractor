@@ -113,9 +113,6 @@ def set_custom_styles():
 
 set_custom_styles()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# (Insert this right after set_custom_styles())
-# ─────────────────────────────────────────────────────────────────────────────
 LIGHT_OVERRIDE_CSS = """
 <style>
     /* 1) Keep the main container white and text black in dark mode */
@@ -167,6 +164,21 @@ LIGHT_OVERRIDE_CSS = """
 </style>
 """
 st.markdown(LIGHT_OVERRIDE_CSS, unsafe_allow_html=True)
+
+
+THEME_UPLOAD_CSS = """
+<style>
+/* Dark mode: make the uploader’s “Drag and drop files here” text white */
+html[data-theme="dark"] .css-1p6np5n edgvbvh3 {
+    color: #ffffff !important;
+}
+/* Light mode: force it back to black */
+html[data-theme="light"] .css-1p6np5n edgvbvh3 {
+    color: #000000 !important;
+}
+</style>
+"""
+st.markdown(THEME_UPLOAD_CSS, unsafe_allow_html=True)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
