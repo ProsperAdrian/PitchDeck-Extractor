@@ -121,6 +121,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+st.markdown("""
+    <style>
+    /* Reduce width of file uploader */
+    div[data-testid="stFileUploader"] {
+        max-width: 400px;
+        margin-left: 0;  /* optional: align left */
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
