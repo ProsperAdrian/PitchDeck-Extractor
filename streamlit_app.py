@@ -65,8 +65,8 @@ def set_custom_styles():
         font-weight: 700;
     }}
     .uploaded-filename, .processing-msg, .success-msg, .extracted-title {{
-        font-size: 18px;
-        font-weight: 500;
+        font-size: 20px;
+        font-weight: 700;
         color: #222;
         margin-top: -0.1rem;
         margin-bottom: 2.5rem;
