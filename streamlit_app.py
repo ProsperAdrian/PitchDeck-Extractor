@@ -235,7 +235,7 @@ with tab1:
 
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
- if uploaded_files:
+if uploaded_files:
     with st.spinner("🔎 Analyzing pitch decks..."):
         for pdf_file in uploaded_files:
             raw_bytes = pdf_file.read()
