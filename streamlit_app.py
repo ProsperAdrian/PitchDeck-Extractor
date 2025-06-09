@@ -517,8 +517,18 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
     st.markdown("##### AI-Generated Startup Insights")
-    st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
-
+    st.markdown("""
+    <div style="display: flex; align-items: center;">
+        <div style="font-size: 16px; margin-right: 8px;">
+            Below is an AI assessment of each pitch deck based on 7 factors: Team, Problem, Solution, Market Size, Business Model, Traction, and Ask.
+        </div>
+        <div title="The overall score is based on a weighting of each section. Specifically: 
+    Team (15%), Problem (15%), Solution (20%), Market Size (15%), 
+    Business Model (15%), Traction (15%) and Ask (5%)" 
+             style="cursor: help; font-size: 15px;">ℹ️</div>
+    </div>
+    """, unsafe_allow_html=True)
+    
     if not all_results:
         st.info("Please upload and process decks in the Library View first.")
     else:
