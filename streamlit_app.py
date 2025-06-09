@@ -147,14 +147,6 @@ Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to ext
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
 """, unsafe_allow_html=True)
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5b) CLEAR CACHED RESULTS (for testing)
-# ─────────────────────────────────────────────────────────────────────────────
-if st.button("🗑️ Clear all results"):
-    st.session_state.clear()
-    st.experimental_rerun()
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
 # ─────────────────────────────────────────────────────────────────────────────
@@ -222,7 +214,6 @@ def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
 # 8) TAB 1: LIBRARY VIEW → UPLOAD + EXTRACT + KEY SLIDE PREVIEW
 # ─────────────────────────────────────────────────────────────────────────────
 with tab1:
-    # 8a) FILE UPLOADER (centered)
     st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
         "Drag & drop PDF(s) here (or click to browse)", 
@@ -231,22 +222,18 @@ with tab1:
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    all_results = []      # Will hold the JSON‐extracted metadata for each deck
     if "all_results" not in st.session_state:
         st.session_state.all_results = []
 
     if "insights_cache" not in st.session_state:
         st.session_state.insights_cache = {}
 
-        # Replace your list with the session one
     all_results = st.session_state.all_results
-
-    pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
+    pdf_buffers = {}
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
             for pdf_file in uploaded_files:
-
                 raw_bytes = pdf_file.read()
                 temp_folder = "temp"
                 os.makedirs(temp_folder, exist_ok=True)
@@ -255,63 +242,35 @@ with tab1:
                     f.write(raw_bytes)
 
                 try:
-                    # 1) Extract all text from PDF
+                    # Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
                     
-                    # FIRST build the result dict
+                    # Build the result dict
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
-                    
-                    # THEN add FullText and filename
                     result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
 
-                    os.remove(temp_path)
-
-                    # 2) Build few‐shot prompt and call ChatGPT
-                    prompt = build_few_shot_prompt(deck_text)
-                    result = call_chatgpt(prompt, api_key=openai_api_key)
-                    result["__filename"] = pdf_file.name
-                    
-                    # 👇 If you run AI insight generation here too:
-                    # from analyze import build_insight_prompt, 
-                    
-                    # Structured pitch scoring
                     # Generate Structured Scores
-                    structured_summary = ""
-                    try:
-                        scoring_prompt = build_structured_scoring_prompt(deck_text)
-                        scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
-                        result["Section Scores"] = scoring_result.get("sections", [])
-                        result["Pitch Score"] = scoring_result.get("total_score", None)
-                        structured_summary = scoring_result.get("summary", "").strip()
-                    except Exception as e:
-                        result["Section Scores"] = []
-                        result["Pitch Score"] = None
-                        structured_summary = ""
+                    scoring_prompt = build_structured_scoring_prompt(deck_text)
+                    scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
+                    result["Section Scores"] = scoring_result.get("sections", [])
+                    result["Pitch Score"] = scoring_result.get("total_score", None)
                     
                     # Generate AI Insights
-                    try:
-                        # if you still want to drive  from a GPT call:
-                        insight_prompt = build_insight_prompt(deck_text)
-                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                        result["Red Flags"] = insight_result.get("Red Flags", [])
-                    except Exception:
-                        result["Red Flags"] = []
-
+                    insight_prompt = build_insight_prompt(deck_text)
+                    insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                    result["Red Flags"] = insight_result.get("Red Flags", [])
                     
-                    # 👇 Store in Streamlit session state
+                    # Store results
                     st.session_state.all_results.append(result)
-
-
-                    # 3) Store PDF bytes so we can render pages later
                     pdf_buffers[pdf_file.name] = raw_bytes
+                    os.remove(temp_path)
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
                     continue
 
-        # 8b) AFTER PROCESSING, SHOW THE “LIBRARY” TABLE + EXPORT BUTTONS
         if all_results:
             st.markdown(
                 """
@@ -322,18 +281,19 @@ with tab1:
                 unsafe_allow_html=True,
             )
             st.markdown("---")
-            # Build a Pandas DataFrame of extracted fields
+            
+            # Build DataFrame
             rows = []
             for rec in all_results:
-                startup_name   = rec.get("StartupName") or rec.get("Startup Name")
-                founding_year  = rec.get("FoundingYear") or rec.get("Founding Year")
-                founders       = rec.get("Founders") or []
-                industry       = rec.get("Industry")
-                niche          = rec.get("Niche")
-                usp            = rec.get("USP")
-                funding_stage  = rec.get("FundingStage") or rec.get("Funding Stage")
-                current_rev    = rec.get("CurrentRevenue") or rec.get("Current Revenue")
-                amount_raised  = rec.get("AmountRaised") or rec.get("Amount Raised")
+                startup_name = rec.get("StartupName") or rec.get("Startup Name")
+                founding_year = rec.get("FoundingYear") or rec.get("Founding Year")
+                founders = rec.get("Founders") or []
+                industry = rec.get("Industry")
+                niche = rec.get("Niche")
+                usp = rec.get("USP")
+                funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
+                current_rev = rec.get("CurrentRevenue") or rec.get("Current Revenue")
+                amount_raised = rec.get("AmountRaised") or rec.get("Amount Raised")
 
                 row = {
                     "Filename": rec.get("__filename"),
@@ -346,6 +306,7 @@ with tab1:
                     "Funding Stage": funding_stage,
                     "Current Revenue": current_rev,
                     "Amount Raised": amount_raised,
+                    "Pitch Score": rec.get("Pitch Score", "N/A")
                 }
                 market = rec.get("Market") or {}
                 row["TAM"] = market.get("TAM")
@@ -354,12 +315,10 @@ with tab1:
                 rows.append(row)
 
             df = pd.DataFrame(rows)
-            
             st.markdown('<div class="extracted-title">Library</div>', unsafe_allow_html=True)
 
-            # 🔻 INSERT THIS BLOCK RIGHT HERE
+            # Filtering options
             startup_names = df["Startup Name"].dropna().unique().tolist()
-            
             startups_to_remove = st.multiselect(
                 "Select startups to remove:",
                 options=startup_names,
@@ -372,13 +331,11 @@ with tab1:
                     rec for rec in all_results
                     if (rec.get("StartupName") or rec.get("Startup Name")) not in startups_to_remove
                 ]
-            # 🔺 END OF INSERTED BLOCK
 
-            
             st.dataframe(df, use_container_width=True)
 
-            # EXPORT BUTTONS: JSON + CSV
-            json_str  = json.dumps(all_results, indent=2)
+            # Export buttons
+            json_str = json.dumps(all_results, indent=2)
             csv_bytes = df.to_csv(index=False).encode("utf-8")
 
             col1, col2, _ = st.columns([1, 1, 6])
@@ -399,7 +356,7 @@ with tab1:
 
             st.markdown("---")
 
-            # 8c) KEY SLIDE PREVIEW: CHATGPT‐DRIVEN
+            # Key Slide Preview
             st.markdown("##### Key Slide Preview")
             st.markdown("Select a deck from the table above to preview its important slides (Team, Market, Traction).")
 
@@ -411,21 +368,13 @@ with tab1:
             if selected_deck:
                 pdf_bytes = pdf_buffers[selected_deck]
                 doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-
-                # Extract full text from each page to feed ChatGPT
                 page_texts = [page.get_text() for page in doc]
-
-                # Ask ChatGPT to tell us the page numbers
                 key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
-                raw_team     = key_info.get("TeamPage")
-                raw_market   = key_info.get("MarketPage")
-                raw_traction = key_info.get("TractionPage")
+                
+                team_idx = (int(key_info["TeamPage"]) - 1) if key_info.get("TeamPage") else None
+                market_idx = (int(key_info["MarketPage"]) - 1) if key_info.get("MarketPage") else None
+                traction_idx = (int(key_info["TractionPage"]) - 1) if key_info.get("TractionPage") else None
 
-                team_idx     = (int(raw_team) - 1) if raw_team else None
-                market_idx   = (int(raw_market) - 1) if raw_market else None
-                traction_idx = (int(raw_traction) - 1) if raw_traction else None
-
-                # Build a list of whichever key pages exist
                 key_slides = []
                 if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
                     key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
@@ -446,49 +395,42 @@ with tab1:
 
                 doc.close()
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # 9) TAB 2: DASHBOARD & INTERACTIVE FILTERING
 # ─────────────────────────────────────────────────────────────────────────────
-# ----------------- TAB 2: DASHBOARD VIEW -----------------
-#
-# … your code above remains unchanged …
-
 with tab2:
     st.markdown("##### Dashboard")
 
     if not all_results:
-        st.warning(
-            "Upload at least one PDF in the Library View first, then come here to see the Dashboard."
-        )
+        st.warning("Upload at least one PDF in the Library View first, then come here to see the Dashboard.")
     else:
-        # Reconstruct a small DataFrame for filtering & charts
+        # Reconstruct DataFrame for filtering & charts
         rows2 = []
         for rec in all_results:
             startup_name = rec.get("StartupName") or rec.get("Startup Name")
-            fy_raw       = rec.get("FoundingYear") or rec.get("Founding Year")
+            fy_raw = rec.get("FoundingYear") or rec.get("Founding Year")
             try:
                 founding_year = int(fy_raw)
             except:
                 founding_year = None
 
-            industry      = rec.get("Industry")
+            industry = rec.get("Industry")
             funding_stage = rec.get("FundingStage") or rec.get("Funding Stage")
+            pitch_score = rec.get("Pitch Score")
 
             rows2.append({
                 "Filename": rec["__filename"],
                 "Startup Name": startup_name,
                 "Founding Year": founding_year,
                 "Industry": industry,
-                "Funding Stage": funding_stage
+                "Funding Stage": funding_stage,
+                "Pitch Score": pitch_score
             })
 
         df2 = pd.DataFrame(rows2)
 
-        # ------- Sidebar Filters -------
+        # Sidebar Filters
         st.sidebar.header("🔎 Filters")
-
-        # 1) Industry filter
         all_industries = sorted([i for i in df2["Industry"].unique() if pd.notna(i)])
         sel_industries = st.sidebar.multiselect(
             "Industry",
@@ -496,7 +438,6 @@ with tab2:
             default=all_industries
         )
 
-        # 2) Founding Year range (guard against missing/None)
         years_list = df2["Founding Year"].dropna().astype(int).tolist()
         if len(years_list) == 0:
             st.sidebar.info("No numeric founding‐year data available.")
@@ -515,7 +456,6 @@ with tab2:
                     value=(min_year, max_year)
                 )
 
-        # 3) Funding Stage filter
         all_stages = sorted([s for s in df2["Funding Stage"].unique() if pd.notna(s)])
         sel_stages = st.sidebar.multiselect(
             "Funding Stage",
@@ -523,17 +463,11 @@ with tab2:
             default=all_stages
         )
 
-        # ------- Apply Filters (allow NaN so “missing” decks are not dropped) -------
-        # Start with all True, then AND in each condition:
+        # Apply Filters
         mask = pd.Series(True, index=df2.index)
-
-        # ● Industry filter: keep row if (industry is in sel_industries) OR industry is NaN
         mask &= (df2["Industry"].isin(sel_industries) | df2["Industry"].isna())
-
-        # ● Funding Stage filter: similarly allow NaN
         mask &= (df2["Funding Stage"].isin(sel_stages) | df2["Funding Stage"].isna())
 
-        # ● Founding Year filter: only apply if we actually built a slider
         if sel_year_range[0] is not None and sel_year_range[1] is not None:
             yr_min, yr_max = sel_year_range
             mask &= (
@@ -542,17 +476,14 @@ with tab2:
             )
 
         filtered = df2[mask]
-
         st.markdown(f"###### 🔍 {filtered.shape[0]} startups match your filters")
 
-        # ------- Summary Charts -------
+        # Summary Charts
         if not filtered.empty:
-            # 1) Industry Breakdown (bar chart)
             st.markdown("**Industry Breakdown**")
             industry_counts = filtered["Industry"].value_counts(dropna=True)
             st.bar_chart(industry_counts)
 
-            # 2) Founding Year Distribution (bar chart)
             st.markdown("**Founding Year Distribution**")
             year_counts = (
                 filtered["Founding Year"]
@@ -563,20 +494,26 @@ with tab2:
             )
             st.bar_chart(year_counts)
 
-            # 3) Funding Stage Breakdown (bar chart)
             st.markdown("**Funding Stage Breakdown**")
             stage_counts = filtered["Funding Stage"].value_counts(dropna=True)
             st.bar_chart(stage_counts)
 
-        st.markdown("---")
+            st.markdown("**Pitch Score Distribution**")
+            if "Pitch Score" in filtered.columns:
+                pitch_scores = filtered["Pitch Score"].dropna()
+                if not pitch_scores.empty:
+                    st.bar_chart(pitch_scores.value_counts().sort_index())
+                else:
+                    st.info("No pitch score data available")
+            else:
+                st.info("No pitch score data available")
 
-        # ------- Display Filtered Table -------
+        st.markdown("---")
         st.markdown("##### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
 
-
 # ─────────────────────────────────────────────────────────────────────────────
-# 10) TAB 3: AI INSIGHTS
+# 10) TAB 3: AI INSIGHTS (IMPROVED VERSION)
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
     st.markdown("### 🧠 AI-Generated Startup Insights")
@@ -593,27 +530,57 @@ with tab3:
             col1, col2 = st.columns([1, 2])
             with col1:
                 pitch_score = rec.get("Pitch Score")
-                st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
+                if pitch_score is not None:
+                    st.markdown(f"""
+                    <div class="metric-box">
+                        <h3 style="margin-top:0;">Pitch Quality Score</h3>
+                        <h1 style="margin:0; color:#3A86FF;">{pitch_score}/100</h1>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="metric-box">
+                        <h3 style="margin-top:0;">Pitch Quality Score</h3>
+                        <p style="margin:0; color:#666;">N/A</p>
+                    </div>
+                    """, unsafe_allow_html=True)
 
             with col2:
-                # Just render Red Flags directly
                 red_flags = rec.get("Red Flags", [])
                 if red_flags:
                     st.markdown("**⚠️ Red Flags:**")
                     for flag in red_flags:
                         st.markdown(f"- {flag}")
+                else:
+                    st.markdown("**✅ No significant red flags identified**")
 
-
-            # Section Scores - 3-column Table Format
+            # Section Scores - Enhanced Display
             section_scores = rec.get("Section Scores", [])
             if section_scores:
                 st.markdown("**📊 Section-wise Breakdown:**")
+                
+                # Create a styled table
                 section_table = pd.DataFrame([
                     {
-                        "Key Section": sec.get("name", ""),
-                        "Rating (out of 10)": sec.get("score", "N/A"),
-                        "Comment": sec.get("comment", sec.get("reason", ""))
+                        "Key Section": sec.get("name", "N/A"),
+                        "Score (out of 10)": sec.get("score", "N/A"),
+                        "Comments": sec.get("comment", sec.get("reason", "N/A"))
                     }
                     for sec in section_scores
                 ])
-                st.dataframe(section_table, use_container_width=True)
+                
+                # Apply styling to the score column
+                def color_score(val):
+                    if isinstance(val, (int, float)):
+                        if val >= 8:
+                            return 'color: green; font-weight: bold;'
+                        elif val >= 5:
+                            return 'color: orange;'
+                        else:
+                            return 'color: red;'
+                    return ''
+                
+                styled_table = section_table.style.applymap(color_score, subset=['Score (out of 10)'])
+                st.dataframe(styled_table, use_container_width=True)
+            else:
+                st.info("No section score data available")
