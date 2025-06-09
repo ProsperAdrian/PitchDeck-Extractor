@@ -145,7 +145,7 @@ Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to ext
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
 # ─────────────────────────────────────────────────────────────────────────────
-tab1, tab2 = st.tabs(["Library View", "Dashboard"])
+tab1, tab2, tab3 = st.tabs(["Library View", "Dashboard", "AI Insights"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -512,3 +512,44 @@ with tab2:
         # ------- Display Filtered Table -------
         st.markdown("##### 💾 Filtered Results Table")
         st.dataframe(filtered, use_container_width=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 10) TAB 3: AI INSIGHTS
+# ─────────────────────────────────────────────────────────────────────────────
+with tab3:
+    st.markdown("### 🧠 AI-Generated Startup Insights")
+    st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
+
+    if not all_results:
+        st.info("Please upload and process decks in the Library View first.")
+    else:
+        for rec in all_results:
+            st.markdown("---")
+            st.subheader(f"🚀 {rec.get('Startup Name', 'Unnamed Startup')}")
+
+            col1, col2 = st.columns([1, 2])
+
+            with col1:
+                pitch_score = rec.get("Pitch Score")
+                if pitch_score is not None:
+                    st.metric("Pitch Quality Score", f"{pitch_score}/100")
+                else:
+                    st.warning("No score available.")
+
+            with col2:
+                insight = rec.get("Summary Insight")
+                if insight:
+                    st.info(insight)
+
+            red_flags = rec.get("Red Flags", [])
+            if red_flags:
+                st.markdown("**⚠️ Red Flags:**")
+                for flag in red_flags:
+                    st.markdown(f"- {flag}")
+
+            questions = rec.get("Suggested Questions", [])
+            if questions:
+                st.markdown("**❓ Suggested Due Diligence Questions:**")
+                for q in questions:
+                    st.markdown(f"- {q}")
