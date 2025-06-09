@@ -560,54 +560,60 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
     st.markdown("### 🧠 AI-Generated Startup Insights")
-    st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
+    st.markdown("Below is an AI assessment of each pitch deck based on 10 criteria.")
 
     if not all_results:
         st.info("Please upload and process decks in the Library View first.")
     else:
+        # Build condensed table
+        condensed_rows = []
         for rec in all_results:
-            st.markdown("---")
-            st.subheader(f"🚀 {rec.get('Startup Name', 'Unnamed Startup')}")
+            name = rec.get("Startup Name", "Unnamed")
+            score = rec.get("Pitch Score", "N/A")
+            section_dict = {s.get("name"): s.get("score") for s in rec.get("Section Scores", [])}
 
-            # Metrics Row
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                pitch_score = rec.get("Pitch Score")
-                st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
+            condensed_rows.append({
+                "Startup": name,
+                "Score": score,
+                "Team": section_dict.get("Team"),
+                "Problem": section_dict.get("Problem"),
+                "Solution": section_dict.get("Solution"),
+                "Business Model": section_dict.get("Business Model"),
+                "Market Size": section_dict.get("Market Size"),
+                "Product": section_dict.get("Product"),
+                "Traction": section_dict.get("Traction"),
+                "Competition": section_dict.get("Competition"),
+                "Financials": section_dict.get("Financials"),
+                "Ask": section_dict.get("Ask")
+            })
 
-            with col2:
-                summary = rec.get("Summary Insight", "").strip()
-                if summary:
-                    st.markdown("**💡 Summary Insight:**")
-                    st.success(summary)
-                else:
-                    st.markdown("**💡 Summary Insight:**")
-                    st.warning("No insight available.")
+        df_ai = pd.DataFrame(condensed_rows)
+        st.dataframe(df_ai, use_container_width=True)
 
-            # Section Scores
-            section_scores = rec.get("Section Scores", [])
-            if section_scores:
-                st.markdown("**📊 Section-wise Breakdown:**")
-                cols = st.columns(2)
-                for i, section in enumerate(section_scores):
-                    name = section.get("name")
-                    score = section.get("score")
-                    reason = section.get("reason", "")
-                    with cols[i % 2]:
-                        st.markdown(f"**{name}:** {score}/10")
-                        if reason:
-                            st.caption(reason)
+        # Optional: Red Flag summary table
+        st.markdown("### ⚠️ Red Flags Summary")
+        flag_rows = []
+        for rec in all_results:
+            flags = rec.get("Red Flags", [])
+            if flags:
+                for flag in flags:
+                    flag_rows.append({
+                        "Startup": rec.get("Startup Name", "Unnamed"),
+                        "Red Flag": flag
+                    })
+        if flag_rows:
+            st.dataframe(pd.DataFrame(flag_rows), use_container_width=True)
 
-            # Red Flags
-            red_flags = rec.get("Red Flags", [])
-            if red_flags:
-                st.markdown("**⚠️ Red Flags:**")
-                for flag in red_flags:
-                    st.markdown(f"- {flag}")
-
-            # Due Diligence Questions
+        # Optional: Due Diligence Questions
+        st.markdown("### ❓ Due Diligence Questions")
+        q_rows = []
+        for rec in all_results:
             questions = rec.get("Suggested Questions", [])
             if questions:
-                st.markdown("**❓ Suggested Due Diligence Questions:**")
                 for q in questions:
-                    st.markdown(f"- {q}")
+                    q_rows.append({
+                        "Startup": rec.get("Startup Name", "Unnamed"),
+                        "Question": q
+                    })
+        if q_rows:
+            st.dataframe(pd.DataFrame(q_rows), use_container_width=True)
