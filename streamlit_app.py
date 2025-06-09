@@ -220,10 +220,10 @@ with tab1:
 
     all_results = []      # Will hold the JSON‐extracted metadata for each deck
     if "all_results" not in st.session_state:
-    st.session_state.all_results = []
+        st.session_state.all_results = []
 
-    # Replace your list with the session one
-    all_results = st.session_state.all_results
+        # Replace your list with the session one
+        all_results = st.session_state.all_results
 
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
