@@ -5,9 +5,7 @@ import json
 from openai import OpenAI
 from dotenv import load_dotenv
 from extract_text import extract_text_from_pdf
-from analyze_insight import build_insight_prompt, call_chatgpt_insight
 from analyze_scoring import build_structured_scoring_prompt, call_structured_pitch_scorer
-
 
 
 # Folder paths
@@ -220,21 +218,8 @@ if __name__ == "__main__":
             result["Pitch Score"] = None
             structured_summary = ""
         
-        # 4b) Generate Red Flags + Questions + Fallback Summary
-        fallback_summary = ""
-        insight_prompt = build_insight_prompt(deck_text)
-        try:
-            insight_result = call_chatgpt_insight(insight_prompt, api_key)
-            result["Red Flags"] = insight_result.get("Red Flags", [])
-            result["Suggested Questions"] = insight_result.get("Suggested Questions", [])
-            fallback_summary = insight_result.get("Summary Insight", "").strip()
-        except Exception as e:
-            result["Red Flags"] = []
-            result["Suggested Questions"] = []
-            fallback_summary = ""
-        
         # 4c) Final Summary Insight (prefer structured)
-        result["Summary Insight"] = structured_summary or fallback_summary or "No summary insight available."
+        result["Summary Insight"] = structured_summary or None
 
         # Merge extracted fields
         result.update(normalized)
