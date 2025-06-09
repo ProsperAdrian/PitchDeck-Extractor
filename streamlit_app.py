@@ -564,6 +564,7 @@ with tab3:
             with col2:
                 insight = rec.get("Summary Insight")
                 if insight:
+                    st.markdown("**💡 Summary Insight:**")
                     st.info(insight)
 
             red_flags = rec.get("Red Flags", [])
