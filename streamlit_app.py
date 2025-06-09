@@ -605,10 +605,3 @@ with tab3:
                 st.markdown("**⚠️ Red Flags:**")
                 for flag in red_flags:
                     st.markdown(f"- {flag}")
-
-            # Due Diligence Questions
-            questions = rec.get("Suggested Questions", [])
-            if questions:
-                st.markdown("**❓ Suggested Due Diligence Questions:**")
-                for q in questions:
-                    st.markdown(f"- {q}")
