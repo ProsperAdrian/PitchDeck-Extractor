@@ -6,6 +6,9 @@ from openai import OpenAI
 from dotenv import load_dotenv
 from extract_text import extract_text_from_pdf
 from analyze_insight import build_insight_prompt, call_chatgpt_insight
+from analyze_scoring import build_structured_scoring_prompt, call_structured_pitch_scorer
+
+
 
 # Folder paths
 INPUT_FOLDER = "input_decks"
@@ -304,25 +307,36 @@ if __name__ == "__main__":
             normalized["Market"] = {"TAM": None, "SAM": None, "SOM": None}
 
         # 4) Generate VC insight
+        scoring_prompt = build_structured_scoring_prompt(deck_text)
+        try:
+            scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key)
+            result["Section Scores"] = scoring_result.get("sections", [])
+            result["Pitch Score"] = scoring_result.get("total_score", None)
+            result["Summary Insight"] = scoring_result.get("summary", "")
+        except Exception as e:
+            print(f"  ⚠️ Failed to generate structured scoring for {fname}: {e}")
+            result["Section Scores"] = []
+            result["Pitch Score"] = None
+            result["Summary Insight"] = "Could not generate structured insight."
+
+        # 4b) Red Flags + Questions
         insight_prompt = build_insight_prompt(deck_text)
         try:
             insight_result = call_chatgpt_insight(insight_prompt, api_key)
-            # Merge into result
-            result.update(insight_result)
+            result["Red Flags"] = insight_result.get("Red Flags", [])
+            result["Suggested Questions"] = insight_result.get("Suggested Questions", [])
         except Exception as e:
-            print(f"  ⚠️ Failed to generate insight for {fname}: {e}")
-            result.update({
-                "Pitch Score": None,
-                "Red Flags": [],
-                "Suggested Questions": [],
-                "Summary Insight": "Could not generate insight."
-            })
+            print(f"  ⚠️ Failed to generate red flags/questions for {fname}: {e}")
+            result["Red Flags"] = []
+            result["Suggested Questions"] = []
 
-
-        # 5) Save output
       
+        # Merge extracted fields
+        result.update(normalized)
+        
+        # 5) Save full result
         base = os.path.splitext(fname)[0]
         out_path = os.path.join(OUTPUT_FOLDER, f"{base}_parsed.json")
         with open(out_path, "w", encoding="utf-8") as fout:
-            json.dump(normalized, fout, indent=2)
+            json.dump(result, fout, indent=2)
         print(f"  → Saved {base}_parsed.json\n")
