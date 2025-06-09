@@ -58,7 +58,7 @@ Return your output as **strict JSON**:
 """
 
 
-def call_structured_pitch_scorer(prompt: str, api_key: str, model="gpt-4") -> dict:
+def call_structured_pitch_scorer(prompt: str, api_key: str, model="gpt-3.5-turbo") -> dict:
     client   = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model=model,
