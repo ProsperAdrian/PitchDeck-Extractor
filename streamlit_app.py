@@ -548,17 +548,26 @@ with tab3:
 
             with col2:
                 red_flags = rec.get("Red Flags", [])
+            
+                st.markdown("""
+                <div style="
+                    border: 1px solid rgba(0,0,0,0.4);
+                    background-color: rgba(0,0,0,0.03);
+                    border-radius: 10px;
+                    padding: 1rem;
+                    margin-bottom: 1rem;
+                ">
+                """, unsafe_allow_html=True)
+            
                 if red_flags:
-                    st.markdown("**⚠️ Red Flags:**")
+                    st.markdown("<strong>⚠️ Red Flags:</strong>", unsafe_allow_html=True)
                     for flag in red_flags:
-                        st.markdown(f"- {flag}")
+                        st.markdown(f"<div style='margin-top: 0.5rem;'>• {flag}</div>", unsafe_allow_html=True)
                 else:
-                    st.markdown("**✅ No significant red flags identified**")
+                    st.markdown("✅ <strong>No significant red flags identified</strong>", unsafe_allow_html=True)
+            
+                st.markdown("</div>", unsafe_allow_html=True)
 
-            # Section Scores - Enhanced Display
-            section_scores = rec.get("Section Scores", [])
-            if section_scores:
-                st.markdown("**📊 Section-wise Breakdown:**")
                 
                 # Create a styled table
                 section_table = pd.DataFrame([
@@ -584,22 +593,11 @@ with tab3:
                 styled_table = section_table.style.applymap(color_score, subset=['Score (out of 10)'])
 
                 
-                st.markdown("""
-                    <style>
-                    .left-indent-table {
-                        display: flex;
-                        justify-content: flex-start;
-                    }
-                    .left-indent-table .element-container {
-                        width: fit-content !important;
-                        margin-left: 0 !important;
-                    }
-                    </style>
-                """, unsafe_allow_html=True)
+                col_indent, col_table = st.columns([1, 8])  # Adjust ratio as needed
                 
-                st.markdown('<div class="left-indent-table">', unsafe_allow_html=True)
-                st.dataframe(styled_table, use_container_width=False)
-                st.markdown('</div>', unsafe_allow_html=True)
+                with col_table:
+                    st.dataframe(styled_table, use_container_width=False)
+
 
             else:
                 st.info("No section score data available")
