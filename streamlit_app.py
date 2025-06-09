@@ -581,6 +581,24 @@ with tab3:
                     return ''
                 
                 styled_table = section_table.style.applymap(color_score, subset=['Score (out of 10)'])
-                st.dataframe(styled_table, use_container_width=True)
+
+                
+                st.markdown("""
+                    <style>
+                    .left-indent-table {
+                        display: flex;
+                        justify-content: flex-start;
+                    }
+                    .left-indent-table .element-container {
+                        width: fit-content !important;
+                        margin-left: 0 !important;
+                    }
+                    </style>
+                """, unsafe_allow_html=True)
+                
+                st.markdown('<div class="left-indent-table">', unsafe_allow_html=True)
+                st.dataframe(styled_table, use_container_width=False)
+                st.markdown('</div>', unsafe_allow_html=True)
+
             else:
                 st.info("No section score data available")
