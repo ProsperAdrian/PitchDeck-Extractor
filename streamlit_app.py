@@ -224,7 +224,7 @@ with tab1:
         st.session_state.all_results = []
 
         # Replace your list with the session one
-        all_results = st.session_state.all_results
+    all_results = st.session_state.all_results
 
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
