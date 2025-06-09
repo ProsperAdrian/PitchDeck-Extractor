@@ -5,7 +5,6 @@ import json
 from openai import OpenAI
 from dotenv import load_dotenv
 from extract_text import extract_text_from_pdf
-from analyze_insight import build_insight_prompt, call_chatgpt_insight
 
 # Folder paths
 INPUT_FOLDER = "input_decks"
