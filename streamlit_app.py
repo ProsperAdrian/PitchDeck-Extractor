@@ -269,20 +269,32 @@ with tab1:
                     # from analyze import build_insight_prompt, 
                     
                     # Structured pitch scoring
+                    # Generate Structured Scores
+                    structured_summary = ""
                     try:
                         scoring_prompt = build_structured_scoring_prompt(deck_text)
                         scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
                         result["Section Scores"] = scoring_result.get("sections", [])
                         result["Pitch Score"] = scoring_result.get("total_score", None)
-                        # Only override if a new summary was returned
                         structured_summary = scoring_result.get("summary", "").strip()
-                        if structured_summary:
-                            result["Summary Insight"] = structured_summary
-
                     except Exception as e:
                         result["Section Scores"] = []
                         result["Pitch Score"] = None
-                        result["Summary Insight"] = "Could not generate structured insight."
+                        structured_summary = ""
+                    
+                    # Generate AI Insights
+                    fallback_summary = ""
+                    try:
+                        insight_prompt = build_insight_prompt(deck_text)
+                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                        result["Red Flags"] = insight_result.get("Red Flags", [])
+                        fallback_summary = insight_result.get("Summary Insight", "").strip()
+                    except Exception as e:
+                        result["Red Flags"] = []
+                        fallback_summary = ""
+                    
+                    # Final Summary Insight (prefer structured, fallback to insight)
+                    result["Summary Insight"] = structured_summary or fallback_summary or "No summary available"
 
                     
                     # 👇 Store in Streamlit session state
@@ -585,15 +597,11 @@ with tab3:
             
                 # Use cached insight if available, otherwise generate and store
                 if filename not in st.session_state.insights_cache:
-                    try:
-                        insight_prompt = build_insight_prompt(rec.get("FullText", ""))
-                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                        st.session_state.insights_cache[filename] = insight_result
-                    except:
-                        st.session_state.insights_cache[filename] = {
-                            "Red Flags": [],
-                            "Summary Insight": "Could not generate insight."
-                        }
+                    # Use the summary we already generated during processing
+                    st.session_state.insights_cache[filename] = {
+                        "Red Flags": rec.get("Red Flags", []),
+                        "Summary Insight": rec.get("Summary Insight", "No summary available")
+                    }
             
                 # Retrieve from cache and show
                 insight = st.session_state.insights_cache[filename]
