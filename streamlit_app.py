@@ -533,8 +533,8 @@ with tab3:
                 if pitch_score is not None:
                     st.markdown(f"""
                     <div class="metric-box">
-                        <h3 style="margin-top:0;">Pitch Quality Score</h3>
-                        <h1 style="margin:0; color:#3A86FF;">{pitch_score}/100</h1>
+                        <h1 style="margin-top:0;">Pitch Quality Score</h3>
+                        <h3 style="margin:0; color:#0000FF;">{pitch_score}/100</h1>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
