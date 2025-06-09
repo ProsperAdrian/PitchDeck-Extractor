@@ -27,6 +27,9 @@ st.set_page_config(
     layout="wide",
 )
 
+if "all_results" in st.session_state:
+    del st.session_state["all_results"]
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
 # ─────────────────────────────────────────────────────────────────────────────
