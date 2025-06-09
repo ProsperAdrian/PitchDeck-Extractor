@@ -593,27 +593,15 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
     st.markdown("### 🧠 AI-Generated Startup Insights")
-    if not st.session_state.all_results:
-        st.info("Please upload decks in the Library view first.")
+    st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
+
+    if not all_results:
+        st.info("Please upload and process decks in the Library View first.")
     else:
-        for rec in st.session_state.all_results:
+        for rec in all_results:
             st.markdown("---")
-            st.subheader(f"🚀 {rec.get('Startup Name','–')}")
+            st.subheader(f"🚀 {rec.get('Startup Name', 'Unnamed Startup')}")
 
-            # pull directly from the record
-            summary = rec.get("Summary Insight", "").strip()
-            st.markdown("**💡 Summary Insight:**")
-            if summary:
-                st.success(summary)
-            else:
-                st.warning("No insight available.")
-
-
-
-
-
-
-            
             # Metrics Row
             col1, col2 = st.columns([1, 2])
             with col1:
