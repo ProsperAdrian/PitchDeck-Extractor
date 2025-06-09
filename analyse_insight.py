@@ -5,16 +5,15 @@
 def build_insight_prompt(deck_slide_text: str) -> str:
     """
     Build a high-quality prompt for qualitative pitch evaluation based on deck content.
-    This prompt will be sent to OpenAI to generate Pitch Score, and Red Flags.
+    This prompt will be sent to OpenAI to generate Red Flags.
     """
     prompt = """
-You are a world-class venture capital analyst. Given the slide text from a startup's pitch deck, evaluate the deck's quality and investment readiness.
+You are a world-class venture capital analyst. Given the slide text from a startup's pitch deck, identify potential red flags in the deck's quality and investment readiness.
 
 Return exactly one JSON object with the following keys:
-- "Pitch Score": integer (0 to 100) — overall quality of the pitch, based on clarity, traction, team, market, and completeness.
 - "Red Flags": list of strings — weaknesses, missing slides, unclear metrics, unrealistic claims, etc.
 
-If information is missing, penalize the score and flag it clearly.
+If no red flags are identified, return an empty list.
 
 --- EXAMPLE 1 ---
 Slide text:
@@ -22,7 +21,6 @@ Slide text:
 
 JSON Output:
 {
-  "Pitch Score": 68,
   "Red Flags": [
     "No clear monetization strategy",
     "Limited traction data (only user count mentioned)"
@@ -35,7 +33,6 @@ Slide text:
 
 JSON Output:
 {
-  "Pitch Score": 90,
   "Red Flags": []
 }
 
