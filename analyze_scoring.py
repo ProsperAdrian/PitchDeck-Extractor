@@ -30,8 +30,7 @@ Return JSON with this structure:
     {"name": "Problem", "score": 6, "comment": "Problem is implied but not well articulated."},
     ...
   ],
-  "total_score": 72,
-  "summary": "Solid pitch overall with strong team and traction, but weak go-to-market clarity."
+  "total_score": 72
 }
 
 --- START OF SLIDES ---
