@@ -612,7 +612,7 @@ with tab3:
                     {
                         "Key Section": sec.get("name", ""),
                         "Rating (out of 10)": sec.get("score", "N/A"),
-                        "Comment": sec.get("reason", "")
+                        "Comment": sec.get("comment", sec.get("reason", ""))
                     }
                     for sec in section_scores
                 ])
