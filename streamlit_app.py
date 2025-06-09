@@ -581,11 +581,18 @@ with tab3:
                 section_scores = rec.get("Section Scores", [])
                 if section_scores:
                     st.markdown("**📊 Section-wise Breakdown:**")
+                
+                    # Display scores in two columns (name/score on left, reason on right)
                     for section in section_scores:
-                        name = section.get("name")
-                        score = section.get("score")
-                        reason = section.get("reason", "")
-                        st.markdown(f"- **{name}:** {score}/10 — _{reason}_")
+                        name = section.get("name", "N/A")
+                        score = section.get("score", "N/A")
+                        reason = section.get("reason", "").strip()
+                
+                        row = f"**{name}**: {score}/10"
+                        if reason:
+                            row += f" — _{reason}_"
+                        st.markdown(f"- {row}")
+
 
 
             with col2:
@@ -593,6 +600,10 @@ with tab3:
                 if insight:
                     st.markdown("**💡 Summary Insight:**")
                     st.info(insight)
+                else:
+                    st.markdown("**💡 Summary Insight:**")
+                    st.info("No summary insight generated.")
+
 
             red_flags = rec.get("Red Flags", [])
             if red_flags:
