@@ -227,6 +227,9 @@ with tab1:
     if "all_results" not in st.session_state:
         st.session_state.all_results = []
 
+    if "insights_cache" not in st.session_state:
+    st.session_state.insights_cache = {}
+
         # Replace your list with the session one
     all_results = st.session_state.all_results
 
@@ -246,6 +249,7 @@ with tab1:
                 try:
                     # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
+                    result["FullText"] = deck_text  # Needed for Tab 3 insight
                     os.remove(temp_path)
 
                     # 2) Build few‐shot prompt and call ChatGPT
@@ -255,21 +259,6 @@ with tab1:
                     
                     # 👇 If you run AI insight generation here too:
                     # from analyze import build_insight_prompt, 
-                    # Keep only Red Flags and Summary Insight (skip Suggested Questions to save tokens)
-                    try:
-                        insight_prompt = build_insight_prompt(deck_text)
-                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                        st.write("🛠️ Raw insight_result:", insight_result)
-
-                    
-                        # Extract only the relevant fields
-                        result["Red Flags"] = insight_result.get("Red Flags", [])
-                        result["Summary Insight"] = insight_result.get("Summary Insight") or "No summary insight generated."
-                    
-                    except Exception:
-                        result["Red Flags"] = []
-                        result["Summary Insight"] = "Could not generate insight."
-
                     
                     # Structured pitch scoring
                     try:
@@ -584,13 +573,39 @@ with tab3:
                 st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
 
             with col2:
-                summary = rec.get("Summary Insight", "").strip()
+                filename = rec.get("__filename")
+            
+                # Use cached insight if available, otherwise generate and store
+                if filename not in st.session_state.insights_cache:
+                    try:
+                        insight_prompt = build_insight_prompt(rec.get("FullText", ""))
+                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                        st.session_state.insights_cache[filename] = insight_result
+                    except:
+                        st.session_state.insights_cache[filename] = {
+                            "Red Flags": [],
+                            "Summary Insight": "Could not generate insight."
+                        }
+            
+                # Retrieve from cache and show
+                insight = st.session_state.insights_cache[filename]
+                summary = insight.get("Summary Insight", "").strip()
+            
                 if summary:
                     st.markdown("**💡 Summary Insight:**")
                     st.success(summary)
                 else:
                     st.markdown("**💡 Summary Insight:**")
                     st.warning("No insight available.")
+            
+                # Also show red flags from insight
+                red_flags = insight.get("Red Flags", [])
+                if red_flags:
+                    st.markdown("**⚠️ Red Flags:**")
+                    for flag in red_flags:
+                        st.markdown(f"- {flag}")
+
+
 
             # Section Scores - 3-column Table Format
             section_scores = rec.get("Section Scores", [])
