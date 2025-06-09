@@ -100,7 +100,7 @@ def set_custom_styles():
         display: none !important;
     }}
     .success-msg-container {{
-        font-size: 4px;
+        font-size: 14px;
         font-weight: 500;
         color: #222;
         margin-top: -0.5rem;
@@ -533,15 +533,15 @@ with tab3:
                 if pitch_score is not None:
                     st.markdown(f"""
                     <div class="metric-box" style="margin-top:0;">
-                        <div style="font-size:19px; font-weight:400; margin-bottom:0.3rem;">Pitch Quality Score</div>
-                        <div style="font-size:30px; font-weight:bold; color:#0000FF;">{pitch_score}/100</div>
+                        <div style="font-size:17px; font-weight:400; margin-bottom:0.3rem;">Pitch Quality Score</div>
+                        <div style="font-size:40px; font-weight:bold; color:#0000FF;">{pitch_score}/100</div>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                     <div class="metric-box" style="margin-top:0;">
-                        <div style="font-size:19px; font-weight:400; margin-bottom:0.3rem;">Pitch Quality Score</div>
-                        <div style="font-size:30px; color:#666;">N/A</div>
+                        <div style="font-size:17px; font-weight:400; margin-bottom:0.3rem;">Pitch Quality Score</div>
+                        <div style="font-size:40px; color:#666;">N/A</div>
                     </div>
                     """, unsafe_allow_html=True)
 
