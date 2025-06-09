@@ -275,7 +275,11 @@ with tab1:
                         scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
                         result["Section Scores"] = scoring_result.get("sections", [])
                         result["Pitch Score"] = scoring_result.get("total_score", None)
-                        result["Summary Insight"] = scoring_result.get("summary", "")
+                        # Only override if a new summary was returned
+                        structured_summary = scoring_result.get("summary", "").strip()
+                        if structured_summary:
+                            result["Summary Insight"] = structured_summary
+
                     except Exception as e:
                         result["Section Scores"] = []
                         result["Pitch Score"] = None
