@@ -176,6 +176,9 @@ def build_insight_prompt(deck_slide_text: str) -> str:
     prompt = """
 You are a world-class venture capital analyst. Given the slide text from a startup's pitch deck, evaluate the deck's quality and investment readiness.
 
+If the pitch includes slides that explain the revenue model, customer acquisition plan, or team bios, do not flag these as missing. Look for common titles like “Revenue”, “Business Model”, “Customer Acquisition”, or “Team”. Be generous but fair — only flag what is genuinely unclear or missing.
+
+
 Return exactly one JSON object with the following keys:
 - "Pitch Score": integer (0 to 100) — overall quality of the pitch, based on clarity, traction, team, market, and completeness.
 - "Red Flags": list of strings — weaknesses, missing slides, unclear metrics, unrealistic claims, etc.
