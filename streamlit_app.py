@@ -1,4 +1,3 @@
-
 # ─────────────────────────────────────────────────────────────────────────────
 # streamlit_app.py
 #
@@ -16,6 +15,7 @@ import fitz                                # PyMuPDF, for rendering PDF pages
 from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
+from analyze import (build_few_shot_prompt, call_chatgpt, build_insight_prompt, call_chatgpt_insight)
 from analyze_scoring import build_structured_scoring_prompt, call_structured_pitch_scorer
 
 
@@ -27,12 +27,8 @@ st.set_page_config(
     layout="wide",
 )
 
-if "all_results" not in st.session_state:
-    st.session_state.all_results = []
-
-
-if "uploader_key" not in st.session_state:
-    st.session_state.uploader_key = 0
+if "all_results" in st.session_state:
+    del st.session_state["all_results"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
@@ -608,3 +604,10 @@ with tab3:
                 st.markdown("**⚠️ Red Flags:**")
                 for flag in red_flags:
                     st.markdown(f"- {flag}")
+
+            # Due Diligence Questions
+            questions = rec.get("Suggested Questions", [])
+            if questions:
+                st.markdown("**❓ Suggested Due Diligence Questions:**")
+                for q in questions:
+                    st.markdown(f"- {q}")
