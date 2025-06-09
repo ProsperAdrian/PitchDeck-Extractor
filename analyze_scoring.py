@@ -40,7 +40,44 @@ Return JSON with this structure:
 """
 
 def build_structured_scoring_prompt(deck_text: str) -> str:
-    return SCORING_PROMPT.replace("{deck_text}", deck_text.strip())
+    return f"""
+You are a world-class venture capital analyst evaluating startup pitch decks. Your task is to score the quality of a pitch based on **exactly these 10 sections**:
+
+1. Team
+2. Problem
+3. Solution
+4. Business Model
+5. Market Size
+6. Product
+7. Traction
+8. Competition
+9. Financials
+10. Ask
+
+🔒 **Important Rules**:
+- Only score a section if the content *directly* addresses it in the pitch. Do not assume or infer.
+- If a section is **missing**, vague, or superficial, give it a **score of 0 to 3** and say why.
+- Never award 10/10 unless the content is clear, complete, and convincing.
+- You MUST include a brief reason for each score (1 sentence max).
+- Return total score (sum of all 10 section scores) as `total_score`.
+
+🛑 If a section is not present, do not guess—penalize.
+
+Return your output as **strict JSON**:
+
+```json
+{{
+  "sections": [
+    {{ "name": "Team", "score": 7, "reason": "Experienced founders but lacks depth on roles" }},
+    ...
+  ],
+  "total_score": 65,
+  "summary": "Strong traction and product, but team details and financials are lacking."
+}}
+--- BEGIN SLIDE TEXT ---
+{deck_text}
+--- END SLIDE TEXT ---
+"""
 
 def call_structured_pitch_scorer(prompt: str, api_key: str, model="gpt-4") -> dict:
     client = OpenAI(api_key=api_key)
