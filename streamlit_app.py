@@ -603,7 +603,9 @@ with tab3:
                 # Retrieve from cache and show
                 insight = st.session_state.insights_cache[filename]
                 summary = insight.get("Summary Insight", "").strip()
-            
+                rec["Summary Insight"] = insight.get("Summary Insight", "")
+                rec["Red Flags"] = insight.get("Red Flags", [])
+                            
                 if summary:
                     st.markdown("**💡 Summary Insight:**")
                     st.success(summary)
