@@ -228,7 +228,7 @@ with tab1:
         st.session_state.all_results = []
 
     if "insights_cache" not in st.session_state:
-    st.session_state.insights_cache = {}
+        st.session_state.insights_cache = {}
 
         # Replace your list with the session one
     all_results = st.session_state.all_results
