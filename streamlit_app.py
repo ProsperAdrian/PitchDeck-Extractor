@@ -12,6 +12,7 @@ import pandas as pd
 import os
 import json
 import fitz                                # PyMuPDF, for rendering PDF pages
+import hashlib
 from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
@@ -231,10 +232,19 @@ with tab1:
     all_results = st.session_state.all_results
     pdf_buffers = {}
 
+    def get_pdf_hash(pdf_bytes: bytes) -> str:
+        return hashlib.sha256(pdf_bytes).hexdigest()
+
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
             for pdf_file in uploaded_files:
                 raw_bytes = pdf_file.read()
+                pdf_hash = get_pdf_hash(raw_bytes)
+                if pdf_hash in st.session_state.insights_cache:
+                    all_results.append(st.session_state.insights_cache[pdf_hash])
+                    pdf_buffers[pdf_file.name] = raw_bytes
+                    continue
+
                 temp_folder = "temp"
                 os.makedirs(temp_folder, exist_ok=True)
                 temp_path = os.path.join(temp_folder, pdf_file.name)
@@ -257,13 +267,14 @@ with tab1:
                     result["Section Scores"] = scoring_result.get("sections", [])
                     result["Pitch Score"] = scoring_result.get("total_score", None)
                     
-                    # Generate AI Insights
+                    # Generate AI Insights (only Red Flags)
                     insight_prompt = build_insight_prompt(deck_text)
                     insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                     result["Red Flags"] = insight_result.get("Red Flags", [])
                     
-                    # Store results
-                    st.session_state.all_results.append(result)
+                    # Store results in cache and session state
+                    st.session_state.insights_cache[pdf_hash] = result
+                    all_results.append(result)
                     pdf_buffers[pdf_file.name] = raw_bytes
                     os.remove(temp_path)
 
