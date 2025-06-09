@@ -249,60 +249,44 @@ with tab1:
                 try:
                     # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
-                    
-                    # FIRST build the result dict
+                
+                    # 2) Extract metadata using few-shot GPT prompt
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
-                    
-                    # THEN add FullText and filename
+                
+                    # 3) Add raw text and filename
                     result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
-
+                
                     os.remove(temp_path)
-
-                    # 2) Build few‐shot prompt and call ChatGPT
-                    prompt = build_few_shot_prompt(deck_text)
-                    metadata = call_chatgpt(prompt, api_key=openai_api_key)
-                    result = metadata.copy()  # now it's safe to enrich it with Section Scores
-
-                    result["__filename"] = pdf_file.name
-                    
-                    # 👇 If you run AI insight generation here too:
-                    # from analyze import build_insight_prompt, 
-                    
-                    # Structured pitch scoring
-                    # Generate Structured Scores
-                    structured_summary = ""
+                
+                    # 4) Add structured pitch scoring
                     try:
                         scoring_prompt = build_structured_scoring_prompt(deck_text)
                         scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
                         result["Section Scores"] = scoring_result.get("sections", [])
                         result["Pitch Score"] = scoring_result.get("total_score", None)
-                        structured_summary = scoring_result.get("summary", "").strip()
                     except Exception as e:
                         result["Section Scores"] = []
                         result["Pitch Score"] = None
-                        structured_summary = ""
-                    
-                    # Generate AI Insights
+                
+                    # 5) Add AI-generated red flags (optional)
                     try:
-                        # if you still want to drive  from a GPT call:
                         insight_prompt = build_insight_prompt(deck_text)
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                         result["Red Flags"] = insight_result.get("Red Flags", [])
                     except Exception:
                         result["Red Flags"] = []
-
-                    
-                    # 👇 Store in Streamlit session state
-                    st.session_state.all_results.append(result)
-
-
-                    # 3) Store PDF bytes so we can render pages later
+                
+                    # 6) Store result in session state
+                    st.session_state["all_results"].append(result)
+                
+                    # 7) Keep raw PDF bytes for preview
                     pdf_buffers[pdf_file.name] = raw_bytes
-
+                
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
+
                     continue
 
         # 8b) AFTER PROCESSING, SHOW THE “LIBRARY” TABLE + EXPORT BUTTONS
