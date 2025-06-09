@@ -255,17 +255,19 @@ with tab1:
                     
                     # 👇 If you run AI insight generation here too:
                     # from analyze import build_insight_prompt, call_chatgpt_insight
-                    insight_prompt = build_insight_prompt(deck_text)
+                    # Keep only Red Flags and Summary Insight (skip Suggested Questions to save tokens)
                     try:
+                        insight_prompt = build_insight_prompt(deck_text)
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                        result.update(insight_result)
-                    except Exception as e:
-                        result.update({
-                            "Pitch Score": None,
-                            "Red Flags": [],
-                            "Suggested Questions": [],
-                            "Summary Insight": "Could not generate insight."
-                        })
+                    
+                        # Extract only the relevant fields
+                        result["Red Flags"] = insight_result.get("Red Flags", [])
+                        result["Summary Insight"] = insight_result.get("Summary Insight", "")
+                    
+                    except Exception:
+                        result["Red Flags"] = []
+                        result["Summary Insight"] = "Could not generate insight."
+
                     
                     # Structured pitch scoring
                     try:
