@@ -226,15 +226,13 @@ if __name__ == "__main__":
         try:
             insight_result = call_chatgpt_insight(insight_prompt, api_key)
             result["Red Flags"] = insight_result.get("Red Flags", [])
-            result["Suggested Questions"] = insight_result.get("Suggested Questions", [])
             fallback_summary = insight_result.get("Summary Insight", "").strip()
         except Exception as e:
             result["Red Flags"] = []
-            result["Suggested Questions"] = []
             fallback_summary = ""
         
         # 4c) Final Summary Insight (prefer structured)
-        result["Summary Insight"] = structured_summary or fallback_summary or "No summary insight available."
+        result["Summary Insight"] = structured_summary or None
 
         # Merge extracted fields
         result.update(normalized)
