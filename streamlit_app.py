@@ -589,7 +589,7 @@ with tab3:
             # Section Scores - 3-column Table Format
             section_scores = rec.get("Section Scores", [])
             if section_scores:
-                st.markdown("**📊 Section-wise Breakdown (Table Format):**")
+                st.markdown("**📊 Section-wise Breakdown:**")
                 section_table = pd.DataFrame([
                     {
                         "Key Section": sec.get("name", ""),
