@@ -107,7 +107,7 @@ def set_custom_styles():
         margin-bottom: rem;
     }}
     .extracted-title {{
-        font-size: 8px;
+        font-size: 18px;
         font-weight: 600;
         margin-bottom: 0.8rem;
     }}
@@ -533,14 +533,14 @@ with tab3:
                 if pitch_score is not None:
                     st.markdown(f"""
                     <div class="metric-box" style="margin-top:0;">
-                        <div style="font-size:17px; font-weight:400; margin-bottom:0.3rem;">Pitch Quality Score</div>
+                        <div style="font-size:17px; font-weight:300; margin-bottom:0.3rem;">Pitch Quality Score</div>
                         <div style="font-size:40px; font-weight:bold; color:#0000FF;">{pitch_score}/100</div>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
                     <div class="metric-box" style="margin-top:0;">
-                        <div style="font-size:17px; font-weight:400; margin-bottom:0.3rem;">Pitch Quality Score</div>
+                        <div style="font-size:17px; font-weight:300; margin-bottom:0.3rem;">Pitch Quality Score</div>
                         <div style="font-size:40px; color:#666;">N/A</div>
                     </div>
                     """, unsafe_allow_html=True)
