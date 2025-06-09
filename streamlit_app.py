@@ -27,8 +27,17 @@ st.set_page_config(
     layout="wide",
 )
 
-if "all_results" in st.session_state:
-    del st.session_state["all_results"]
+# DO NOT DELETE session state on rerun.
+# Instead, keep it persistent for new uploads to work.
+if "all_results" not in st.session_state:
+    st.session_state.all_results = []
+
+if "insights_cache" not in st.session_state:
+    st.session_state.insights_cache = {}
+
+# Local alias for ease of use
+all_results = st.session_state.all_results
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
