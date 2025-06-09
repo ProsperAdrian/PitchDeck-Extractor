@@ -148,9 +148,9 @@ Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to ext
 """, unsafe_allow_html=True)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
+# 6) CREATE TWO TABS: LIBRARY VIEW &  VIEW
 # ─────────────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["Library View", "Dashboard", "AI Insights"])
+tab1, tab2, tab3 = st.tabs(["Library View", "", "AI Insights"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ with tab2:
 # 10) TAB 3: AI INSIGHTS (IMPROVED VERSION)
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
-    st.markdown("### 🧠 AI-Generated Startup Insights")
+    st.markdown("##### 🧠 AI-Generated Startup Insights")
     st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
 
     if not all_results:
@@ -524,7 +524,7 @@ with tab3:
     else:
         for rec in all_results:
             st.markdown("---")
-            st.subheader(f"🚀 {rec.get('Startup Name', 'Unnamed Startup')}")
+            st.subheader(f"##### {rec.get('Startup Name', 'Unnamed Startup')}™️")
 
             # Metrics Row
             col1, col2 = st.columns([1, 2])
@@ -532,18 +532,19 @@ with tab3:
                 pitch_score = rec.get("Pitch Score")
                 if pitch_score is not None:
                     st.markdown(f"""
-                    <div class="metric-box">
-                        <h1 style="margin-top:0;">Pitch Quality Score</h3>
-                        <h3 style="margin:0; color:#0000FF;">{pitch_score}/100</h1>
+                    <div class="metric-box" style="margin-top:0;">
+                        <div style="font-size:22px; font-weight:600; margin-bottom:0.3rem;">Pitch Quality Score</div>
+                        <div style="font-size:30px; font-weight:bold; color:#0000FF;">{pitch_score}/100</div>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
                     st.markdown(f"""
-                    <div class="metric-box">
-                        <h3 style="margin-top:0;">Pitch Quality Score</h3>
-                        <p style="margin:0; color:#666;">N/A</p>
+                    <div class="metric-box" style="margin-top:0;">
+                        <div style="font-size:22px; font-weight:600; margin-bottom:0.3rem;">Pitch Quality Score</div>
+                        <div style="font-size:30px; color:#666;">N/A</div>
                     </div>
                     """, unsafe_allow_html=True)
+
 
             with col2:
                 red_flags = rec.get("Red Flags", [])
