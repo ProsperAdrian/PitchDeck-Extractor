@@ -254,15 +254,17 @@ with tab1:
                     result["__filename"] = pdf_file.name
                     
                     # 👇 If you run AI insight generation here too:
-                    # from analyze import build_insight_prompt, call_chatgpt_insight
+                    # from analyze import build_insight_prompt, 
                     # Keep only Red Flags and Summary Insight (skip Suggested Questions to save tokens)
                     try:
                         insight_prompt = build_insight_prompt(deck_text)
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                        st.write("🛠️ Raw insight_result:", insight_result)
+
                     
                         # Extract only the relevant fields
                         result["Red Flags"] = insight_result.get("Red Flags", [])
-                        result["Summary Insight"] = insight_result.get("Summary Insight", "")
+                        result["Summary Insight"] = insight_result.get("Summary Insight") or "No summary insight generated."
                     
                     except Exception:
                         result["Red Flags"] = []
