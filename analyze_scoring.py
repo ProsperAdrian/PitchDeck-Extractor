@@ -59,13 +59,13 @@ You are a world-class venture capital analyst evaluating startup pitch decks. Yo
 - If a section is **missing**, vague, or superficial, give it a **score of 0 to 3** and say why.
 - Never award 10/10 unless the content is clear, complete, and convincing.
 - You MUST include a brief reason for each score (1 sentence max).
-- Return total score (sum of all 10 section scores) as `total_score`.
+- Return total score (sum of all 10 section scores) as total_score.
 
 🛑 If a section is not present, do not guess—penalize.
 
 Return your output as **strict JSON**:
 
-```json
+json
 {{
   "sections": [
     {{ "name": "Team", "score": 7, "reason": "Experienced founders but lacks depth on roles" }},
@@ -97,3 +97,4 @@ def call_structured_pitch_scorer(prompt: str, api_key: str, model="gpt-4") -> di
         if start != -1 and end != -1:
             return json.loads(content[start:end])
         raise ValueError(f"Could not parse structured scoring JSON:\n{content}")
+
