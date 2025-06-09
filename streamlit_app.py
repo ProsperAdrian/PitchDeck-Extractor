@@ -28,7 +28,8 @@ st.set_page_config(
 )
 
 if "all_results" not in st.session_state:
-    st.session_state["all_results"]
+    st.session_state["all_results"] = []
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
