@@ -27,9 +27,8 @@ st.set_page_config(
     layout="wide",
 )
 
-if "all_results" not in st.session_state:
-    st.session_state["all_results"] = []
-
+if "all_results" in st.session_state:
+    del st.session_state["all_results"]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 2) PULL YOUR OPENAI KEY FROM STREAMLIT SECRETS
@@ -148,6 +147,14 @@ Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to ext
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
 """, unsafe_allow_html=True)
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 5b) CLEAR CACHED RESULTS (for testing)
+# ─────────────────────────────────────────────────────────────────────────────
+if st.button("🗑️ Clear all results"):
+    st.session_state.clear()
+    st.experimental_rerun()
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) CREATE TWO TABS: LIBRARY VIEW & DASHBOARD VIEW
 # ─────────────────────────────────────────────────────────────────────────────
@@ -224,14 +231,15 @@ with tab1:
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
+    all_results = []      # Will hold the JSON‐extracted metadata for each deck
     if "all_results" not in st.session_state:
-        st.session_state["all_results"] = []
-    
-    if "insights_cache" not in st.session_state:
-        st.session_state["insights_cache"] = {}
-    
-    all_results = st.session_state["all_results"]
+        st.session_state.all_results = []
 
+    if "insights_cache" not in st.session_state:
+        st.session_state.insights_cache = {}
+
+        # Replace your list with the session one
+    all_results = st.session_state.all_results
 
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
@@ -249,44 +257,58 @@ with tab1:
                 try:
                     # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
-                
-                    # 2) Extract metadata using few-shot GPT prompt
+                    
+                    # FIRST build the result dict
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
-                
-                    # 3) Add raw text and filename
+                    
+                    # THEN add FullText and filename
                     result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
-                
+
                     os.remove(temp_path)
-                
-                    # 4) Add structured pitch scoring
+
+                    # 2) Build few‐shot prompt and call ChatGPT
+                    prompt = build_few_shot_prompt(deck_text)
+                    result = call_chatgpt(prompt, api_key=openai_api_key)
+                    result["__filename"] = pdf_file.name
+                    
+                    # 👇 If you run AI insight generation here too:
+                    # from analyze import build_insight_prompt, 
+                    
+                    # Structured pitch scoring
+                    # Generate Structured Scores
+                    structured_summary = ""
                     try:
                         scoring_prompt = build_structured_scoring_prompt(deck_text)
                         scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
                         result["Section Scores"] = scoring_result.get("sections", [])
                         result["Pitch Score"] = scoring_result.get("total_score", None)
+                        structured_summary = scoring_result.get("summary", "").strip()
                     except Exception as e:
                         result["Section Scores"] = []
                         result["Pitch Score"] = None
-                
-                    # 5) Add AI-generated red flags (optional)
+                        structured_summary = ""
+                    
+                    # Generate AI Insights
                     try:
+                        # if you still want to drive  from a GPT call:
                         insight_prompt = build_insight_prompt(deck_text)
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                         result["Red Flags"] = insight_result.get("Red Flags", [])
                     except Exception:
                         result["Red Flags"] = []
-                
-                    # 6) Store result in session state
-                    st.session_state["all_results"].append(result)
-                
-                    # 7) Keep raw PDF bytes for preview
+
+                    
+                    # 👇 Store in Streamlit session state
+                    st.session_state.all_results.append(result)
+
+
+                    # 3) Store PDF bytes so we can render pages later
                     pdf_buffers[pdf_file.name] = raw_bytes
-                
+
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
-
                     continue
 
         # 8b) AFTER PROCESSING, SHOW THE “LIBRARY” TABLE + EXPORT BUTTONS
@@ -571,10 +593,6 @@ with tab3:
             col1, col2 = st.columns([1, 2])
             with col1:
                 pitch_score = rec.get("Pitch Score")
-                try:
-                    pitch_score = int(pitch_score)
-                except (TypeError, ValueError):
-                    pitch_score = None
                 st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
 
             with col2:
@@ -594,7 +612,7 @@ with tab3:
                     {
                         "Key Section": sec.get("name", ""),
                         "Rating (out of 10)": sec.get("score", "N/A"),
-                        "Comment": sec.get("comment", sec.get("reason", ""))
+                        "Comment": sec.get("reason", "")
                     }
                     for sec in section_scores
                 ])
