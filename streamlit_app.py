@@ -571,6 +571,10 @@ with tab3:
             col1, col2 = st.columns([1, 2])
             with col1:
                 pitch_score = rec.get("Pitch Score")
+                try:
+                    pitch_score = int(pitch_score)
+                except (TypeError, ValueError):
+                    pitch_score = None
                 st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
 
             with col2:
