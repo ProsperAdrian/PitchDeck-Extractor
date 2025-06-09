@@ -15,7 +15,7 @@ import fitz                                # PyMuPDF, for rendering PDF pages
 from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
-from analyze import (build_few_shot_prompt, call_chatgpt, build_insight_prompt, call_chatgpt_insight)
+from analyze import (build_few_shot_prompt, call_chatgpt)
 from analyze_scoring import build_structured_scoring_prompt, call_structured_pitch_scorer
 
 
@@ -283,18 +283,13 @@ with tab1:
                         structured_summary = ""
                     
                     # Generate AI Insights
-                    fallback_summary = ""
                     try:
+                        # if you still want to drive Red Flags from a GPT call:
                         insight_prompt = build_insight_prompt(deck_text)
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                         result["Red Flags"] = insight_result.get("Red Flags", [])
-                        fallback_summary = insight_result.get("Summary Insight", "").strip()
-                    except Exception as e:
+                    except Exception:
                         result["Red Flags"] = []
-                        fallback_summary = ""
-                    
-                    # Final Summary Insight (prefer structured, fallback to insight)
-                    result["Summary Insight"] = structured_summary or fallback_summary or "No summary available"
 
                     
                     # 👇 Store in Streamlit session state
@@ -593,34 +588,12 @@ with tab3:
                 st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
 
             with col2:
-                filename = rec.get("__filename")
-            
-                # Use cached insight if available, otherwise generate and store
-                if filename not in st.session_state.insights_cache:
-                    # Use the summary we already generated during processing
-                    st.session_state.insights_cache[filename] = {
-                        "Red Flags": rec.get("Red Flags", []),
-                        "Summary Insight": rec.get("Summary Insight", "No summary available")
-                    }
-            
-                # Retrieve from cache and show
-                insight = st.session_state.insights_cache[filename]
-                summary = insight.get("Summary Insight", "").strip()
-            
-                if summary:
-                    st.markdown("**💡 Summary Insight:**")
-                    st.success(summary)
-                else:
-                    st.markdown("**💡 Summary Insight:**")
-                    st.warning("No insight available.")
-            
-                # Also show red flags from insight
-                red_flags = insight.get("Red Flags", [])
+                # Just render Red Flags directly
+                red_flags = rec.get("Red Flags", [])
                 if red_flags:
                     st.markdown("**⚠️ Red Flags:**")
                     for flag in red_flags:
                         st.markdown(f"- {flag}")
-
 
 
             # Section Scores - 3-column Table Format
