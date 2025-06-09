@@ -16,6 +16,7 @@ from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
 from analyze import (build_few_shot_prompt, call_chatgpt, build_insight_prompt, call_chatgpt_insight)
+from analyze_scoring import build_structured_scoring_prompt, call_structured_pitch_scorer
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -262,6 +263,19 @@ with tab1:
                             "Suggested Questions": [],
                             "Summary Insight": "Could not generate insight."
                         })
+                    
+                    # Structured pitch scoring
+                    try:
+                        scoring_prompt = build_structured_scoring_prompt(deck_text)
+                        scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
+                        result["Section Scores"] = scoring_result.get("sections", [])
+                        result["Pitch Score"] = scoring_result.get("total_score", None)
+                        result["Summary Insight"] = scoring_result.get("summary", "")
+                    except Exception as e:
+                        result["Section Scores"] = []
+                        result["Pitch Score"] = None
+                        result["Summary Insight"] = "Could not generate structured insight."
+
                     
                     # 👇 Store in Streamlit session state
                     st.session_state.all_results.append(result)
@@ -560,6 +574,16 @@ with tab3:
                     st.metric("Pitch Quality Score", f"{pitch_score}/100")
                 else:
                     st.warning("No score available.")
+                    
+                section_scores = rec.get("Section Scores", [])
+                if section_scores:
+                    st.markdown("**📊 Section-wise Breakdown:**")
+                    for section in section_scores:
+                        name = section.get("name")
+                        score = section.get("score")
+                        reason = section.get("reason", "")
+                        st.markdown(f"- **{name}:** {score}/10 — _{reason}_")
+
 
             with col2:
                 insight = rec.get("Summary Insight")
