@@ -15,7 +15,8 @@ import fitz                                # PyMuPDF, for rendering PDF pages
 from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
-from analyze import build_few_shot_prompt, call_chatgpt
+from analyze import (build_few_shot_prompt, call_chatgpt, build_insight_prompt, call_chatgpt_insight)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1) SET PAGE CONFIG (MUST BE THE FIRST STREAMLIT CALL)
