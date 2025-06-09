@@ -306,31 +306,35 @@ if __name__ == "__main__":
         else:
             normalized["Market"] = {"TAM": None, "SAM": None, "SOM": None}
 
-        # 4) Generate VC insight
+        # 4a) Generate Structured Scores
+        structured_summary = ""
         scoring_prompt = build_structured_scoring_prompt(deck_text)
         try:
             scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key)
             result["Section Scores"] = scoring_result.get("sections", [])
             result["Pitch Score"] = scoring_result.get("total_score", None)
-            result["Summary Insight"] = scoring_result.get("summary", "")
+            structured_summary = scoring_result.get("summary", "").strip()
         except Exception as e:
-            print(f"  ⚠️ Failed to generate structured scoring for {fname}: {e}")
             result["Section Scores"] = []
             result["Pitch Score"] = None
-            result["Summary Insight"] = "Could not generate structured insight."
-
-        # 4b) Red Flags + Questions
+            structured_summary = ""
+        
+        # 4b) Generate Red Flags + Questions + Fallback Summary
+        fallback_summary = ""
         insight_prompt = build_insight_prompt(deck_text)
         try:
             insight_result = call_chatgpt_insight(insight_prompt, api_key)
             result["Red Flags"] = insight_result.get("Red Flags", [])
             result["Suggested Questions"] = insight_result.get("Suggested Questions", [])
+            fallback_summary = insight_result.get("Summary Insight", "").strip()
         except Exception as e:
-            print(f"  ⚠️ Failed to generate red flags/questions for {fname}: {e}")
             result["Red Flags"] = []
             result["Suggested Questions"] = []
+            fallback_summary = ""
+        
+        # 4c) Final Summary Insight (prefer structured)
+        result["Summary Insight"] = structured_summary or fallback_summary or "No summary insight available."
 
-      
         # Merge extracted fields
         result.update(normalized)
         
