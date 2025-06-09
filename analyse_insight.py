@@ -5,7 +5,7 @@
 def build_insight_prompt(deck_slide_text: str) -> str:
     """
     Build a high-quality prompt for qualitative pitch evaluation based on deck content.
-    This prompt will be sent to OpenAI to generate Pitch Score, Red Flags, Suggested Questions, and Summary Insight.
+    This prompt will be sent to OpenAI to generate Pitch Score, Red Flags, and Summary Insight.
     """
     prompt = """
 You are a world-class venture capital analyst. Given the slide text from a startup's pitch deck, evaluate the deck's quality and investment readiness.
@@ -13,7 +13,6 @@ You are a world-class venture capital analyst. Given the slide text from a start
 Return exactly one JSON object with the following keys:
 - "Pitch Score": integer (0 to 100) — overall quality of the pitch, based on clarity, traction, team, market, and completeness.
 - "Red Flags": list of strings — weaknesses, missing slides, unclear metrics, unrealistic claims, etc.
-- "Suggested Questions": list of strings — what an investor should ask in a meeting to probe the deck further.
 - "Summary Insight": one or two sentences summarizing the investment potential.
 
 If information is missing, penalize the score and flag it clearly.
@@ -29,10 +28,6 @@ JSON Output:
     "No clear monetization strategy",
     "Limited traction data (only user count mentioned)"
   ],
-  "Suggested Questions": [
-    "What are your revenue projections for the next 12 months?",
-    "Who is your paying customer (schools, parents, students)?"
-  ],
   "Summary Insight": "The founding team has strong credentials and early traction, but monetization and go-to-market strategy remain unclear."
 }
 
@@ -44,10 +39,6 @@ JSON Output:
 {
   "Pitch Score": 90,
   "Red Flags": [],
-  "Suggested Questions": [
-    "What’s your CAC and LTV?",
-    "How do you plan to scale customer acquisition?"
-  ],
   "Summary Insight": "This is a high-quality deck with strong traction and a credible team in a clear market."
 }
 
