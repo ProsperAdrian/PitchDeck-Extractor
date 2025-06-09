@@ -577,30 +577,28 @@ with tab3:
                 st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
 
             with col2:
-                filename = rec.get("__filename")
+                filename = rec["__filename"]
             
-                # Use cached insight if available, otherwise generate and store
+                # If we haven’t yet asked for an insight, do it now and print out what we got
                 if filename not in st.session_state.insights_cache:
-                    try:
-                        insight_prompt = build_insight_prompt(rec.get("FullText", ""))
-                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                        st.session_state.insights_cache[filename] = insight_result
-                    except:
-                        st.session_state.insights_cache[filename] = {
-                            "Red Flags": [],
-                            "Summary Insight": "Could not generate insight."
-                        }
+                    insight_prompt = build_insight_prompt(rec["FullText"])
+                    st.write("🔍 Insight prompt (first 200 chars):", insight_prompt[:200])
+                    
+                    insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                    st.write("💬 Raw insight result:", insight_result)
+                    
+                    st.session_state.insights_cache[filename] = insight_result
             
-                # Retrieve from cache and show
                 insight = st.session_state.insights_cache[filename]
                 summary = insight.get("Summary Insight", "").strip()
             
+                st.markdown("**💡 Summary Insight:**")
                 if summary:
-                    st.markdown("**💡 Summary Insight:**")
                     st.success(summary)
                 else:
-                    st.markdown("**💡 Summary Insight:**")
                     st.warning("No insight available.")
+
+
             
                 # Also show red flags from insight
                 red_flags = insight.get("Red Flags", [])
