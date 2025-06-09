@@ -258,20 +258,20 @@ with tab1:
                     result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
                 # 2b) Generate Insight Summary + Red Flags (store both in result and cache)
-                try:
-                    insight_prompt = build_insight_prompt(deck_text)
-                    insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                
-                    result["Summary Insight"] = insight_result.get("Summary Insight", "").strip()
-                    result["Red Flags"] = insight_result.get("Red Flags", [])
-                    st.session_state.insights_cache[pdf_file.name] = insight_result
-                except Exception as e:
-                    result["Summary Insight"] = "Could not generate insight."
-                    result["Red Flags"] = []
-                    st.session_state.insights_cache[pdf_file.name] = {
-                        "Summary Insight": "Could not generate insight.",
-                        "Red Flags": []
-                    }
+                    try:
+                        insight_prompt = build_insight_prompt(deck_text)
+                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                    
+                        result["Summary Insight"] = insight_result.get("Summary Insight", "").strip()
+                        result["Red Flags"] = insight_result.get("Red Flags", [])
+                        st.session_state.insights_cache[pdf_file.name] = insight_result
+                    except Exception as e:
+                        result["Summary Insight"] = "Could not generate insight."
+                        result["Red Flags"] = []
+                        st.session_state.insights_cache[pdf_file.name] = {
+                            "Summary Insight": "Could not generate insight.",
+                            "Red Flags": []
+                        }
 
 
 
