@@ -5,81 +5,60 @@ from openai import OpenAI
 
 # Define your rubric
 SCORING_RUBRIC = [
-    {"name": "Team", "weight": 15, "aliases": ["team", "leadership", "founders"]},
-    {"name": "Problem", "weight": 10, "aliases": ["problem", "pain point"]},
-    {"name": "Solution", "weight": 10, "aliases": ["solution", "product", "offering"]},
-    {"name": "Revenue Model", "weight": 10, "aliases": ["revenue", "monetization", "how we make money"]},
-    {"name": "Market Size", "weight": 10, "aliases": ["market", "tam", "sam", "som"]},
-    {"name": "Traction", "weight": 10, "aliases": ["traction", "metrics", "growth"]},
-    {"name": "Go-to-Market", "weight": 10, "aliases": ["go-to-market", "gtm", "sales", "acquisition"]},
-    {"name": "Competition", "weight": 10, "aliases": ["competition", "competitive", "landscape"]},
-    {"name": "Business Model Fit", "weight": 10, "aliases": ["business model", "scaling", "product-market fit"]},
-    {"name": "Ask & Use of Funds", "weight": 5, "aliases": ["ask", "funds", "use of proceeds"]}
+    { "name": "Team",                           "weight": 15, "aliases": ["team", "leadership", "founders"] },
+    { "name": "Problem & Opportunity",          "weight": 15, "aliases": ["problem", "pain point", "opportunity"] },
+    { "name": "Solution & Product",             "weight": 20, "aliases": ["solution", "product", "offering"] },
+    { "name": "Market Size & Competitive Landscape", "weight": 15, "aliases": ["market", "tam", "sam", "som", "competition", "competitive", "landscape"] },
+    { "name": "Business Model & Financials",    "weight": 15, "aliases": ["business model", "revenue model", "financials", "projections", "revenue"] },
+    { "name": "Traction",                       "weight": 15, "aliases": ["traction", "metrics", "growth"] },
+    { "name": "Ask & Use of Proceeds",          "weight":  5, "aliases": ["ask", "funds", "use of proceeds"] }
 ]
 
-
-# Prompt template
-SCORING_PROMPT = """
-You are a VC analyst scoring the quality of a startup pitch deck based on 10 essential sections. 
-Each section has a weight. Based on the full slide text, evaluate each section's presence and quality (0–10), then compute a weighted total score.
-
-Return JSON with this structure:
-{
-  "sections": [
-    {"name": "Team", "score": 8, "comment": "Founders listed with roles and past experience."},
-    {"name": "Problem", "score": 6, "comment": "Problem is implied but not well articulated."},
-    ...
-  ],
-  "total_score": 72
-}
-
---- START OF SLIDES ---
-{deck_text}
---- END ---
-"""
+# 2) Add this function immediately below:
+def apply_weights(sections: list[dict]) -> int:
+    """
+    Given a list of {"name":…, "score":…}, compute the weighted total
+    (0–100 normalized).
+    """
+    weight_map = {sec["name"]: sec["weight"] for sec in SCORING_RUBRIC}
+    total      = sum(sec["score"] * weight_map.get(sec["name"], 0) for sec in sections)
+    max_total  = sum(weight * 10 for weight in weight_map.values())
+    return round(total / max_total * 100)
 
 def build_structured_scoring_prompt(deck_text: str) -> str:
+    # Dynamically list your sections + weights
+    section_lines = "\n".join(
+        f"{i+1}. {sec['name']} (weight {sec['weight']})"
+        for i, sec in enumerate(SCORING_RUBRIC)
+    )
     return f"""
-You are a world-class venture capital analyst evaluating startup pitch decks. Your task is to score the quality of a pitch based on **exactly these 10 sections**:
+You are a world-class venture capital analyst evaluating startup pitch decks. Your task is to score the quality of a pitch based on **exactly these {len(SCORING_RUBRIC)} sections**:
 
-1. Team
-2. Problem
-3. Solution
-4. Business Model
-5. Market Size
-6. Product
-7. Traction
-8. Competition
-9. Financials
-10. Ask
+{section_lines}
 
 🔒 **Important Rules**:
 - Only score a section if the content *directly* addresses it in the pitch. Do not assume or infer.
 - If a section is **missing**, vague, or superficial, give it a **score of 0 to 3** and say why.
 - Never award 10/10 unless the content is clear, complete, and convincing.
 - You MUST include a brief reason for each score (1 sentence max).
-- Return total score (sum of all 10 section scores) as total_score.
-
-🛑 If a section is not present, do not guess—penalize.
+- **Do** compute a weighted sum (score × weight) and return that as `total_score`.
 
 Return your output as **strict JSON**:
-
-json
 {{
   "sections": [
-    {{ "name": "Team", "score": 7, "reason": "Experienced founders but lacks depth on roles" }},
-    ...
+    {{ "name": "...", "score": 7, "comment": "..." }},
+    …
   ],
-  "total_score": 65,
-  "summary": "Strong traction and product, but team details and financials are lacking."
+  "total_score": <your weighted total>
 }}
 --- BEGIN SLIDE TEXT ---
 {deck_text}
 --- END SLIDE TEXT ---
 """
 
+
 def call_structured_pitch_scorer(prompt: str, api_key: str, model="gpt-4") -> dict:
-    client = OpenAI(api_key=api_key)
+    client   = OpenAI(api_key=api_key)
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
@@ -88,12 +67,20 @@ def call_structured_pitch_scorer(prompt: str, api_key: str, model="gpt-4") -> di
     )
     content = response.choices[0].message.content.strip()
 
+    # 1) Parse JSON
     try:
-        return json.loads(content)
+        result = json.loads(content)
     except json.JSONDecodeError:
-        start = content.find("{")
-        end = content.rfind("}") + 1
-        if start != -1 and end != -1:
-            return json.loads(content[start:end])
-        raise ValueError(f"Could not parse structured scoring JSON:\n{content}")
+        start  = content.find("{")
+        end    = content.rfind("}") + 1
+        result = json.loads(content[start:end])
 
+    # 2) Recompute the weighted total
+    sections      = result.get("sections", [])
+    weighted_score = apply_weights(sections)
+
+    # 3) Return only what you need
+    return {
+        "sections":    sections,
+        "total_score": weighted_score
+    }
