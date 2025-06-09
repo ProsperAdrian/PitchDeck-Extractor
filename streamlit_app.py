@@ -516,7 +516,7 @@ with tab2:
 # 10) TAB 3: AI INSIGHTS (IMPROVED VERSION)
 # ─────────────────────────────────────────────────────────────────────────────
 with tab3:
-    st.markdown("##### 🧠 AI-Generated Startup Insights")
+    st.markdown("##### AI-Generated Startup Insights")
     st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
 
     if not all_results:
@@ -524,7 +524,7 @@ with tab3:
     else:
         for rec in all_results:
             st.markdown("---")
-            st.subheader(f"##### {rec.get('Startup Name', 'Unnamed Startup')}™️")
+            st.markdown(f"##### {rec.get('Startup Name', 'Unnamed Startup')}™️")
 
             # Metrics Row
             col1, col2 = st.columns([1, 2])
@@ -545,10 +545,9 @@ with tab3:
                     </div>
                     """, unsafe_allow_html=True)
 
-
             with col2:
                 red_flags = rec.get("Red Flags", [])
-            
+
                 st.markdown("""
                 <div style="
                     border: 1px solid rgba(0,0,0,0.4);
@@ -558,18 +557,21 @@ with tab3:
                     margin-bottom: 1rem;
                 ">
                 """, unsafe_allow_html=True)
-            
+
                 if red_flags:
                     st.markdown("<strong>⚠️ Red Flags:</strong>", unsafe_allow_html=True)
                     for flag in red_flags:
                         st.markdown(f"<div style='margin-top: 0.5rem;'>• {flag}</div>", unsafe_allow_html=True)
                 else:
                     st.markdown("✅ <strong>No significant red flags identified</strong>", unsafe_allow_html=True)
-            
+
                 st.markdown("</div>", unsafe_allow_html=True)
 
-                
-                # Create a styled table
+            # Section Scores - Enhanced Display
+            section_scores = rec.get("Section Scores", [])
+            if section_scores:
+                st.markdown("**📊 Section-wise Breakdown:**")
+
                 section_table = pd.DataFrame([
                     {
                         "Key Section": sec.get("name", "N/A"),
@@ -578,8 +580,7 @@ with tab3:
                     }
                     for sec in section_scores
                 ])
-                
-                # Apply styling to the score column
+
                 def color_score(val):
                     if isinstance(val, (int, float)):
                         if val >= 8:
@@ -589,15 +590,12 @@ with tab3:
                         else:
                             return 'color: red;'
                     return ''
-                
+
                 styled_table = section_table.style.applymap(color_score, subset=['Score (out of 10)'])
 
-                
-                col_indent, col_table = st.columns([1, 8])  # Adjust ratio as needed
-                
+                col_indent, col_table = st.columns([1, 8])  # Left indent layout
                 with col_table:
                     st.dataframe(styled_table, use_container_width=False)
-
 
             else:
                 st.info("No section score data available")
