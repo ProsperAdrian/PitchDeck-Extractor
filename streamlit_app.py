@@ -569,48 +569,43 @@ with tab3:
             st.markdown("---")
             st.subheader(f"🚀 {rec.get('Startup Name', 'Unnamed Startup')}")
 
+            # Metrics Row
             col1, col2 = st.columns([1, 2])
-
             with col1:
                 pitch_score = rec.get("Pitch Score")
-                if pitch_score is not None:
-                    st.metric("Pitch Quality Score", f"{pitch_score}/100")
-                else:
-                    st.warning("No score available.")
-                    
-                section_scores = rec.get("Section Scores", [])
-                if section_scores:
-                    st.markdown("**📊 Section-wise Breakdown:**")
-                
-                    # Display scores in two columns (name/score on left, reason on right)
-                    for section in section_scores:
-                        name = section.get("name", "N/A")
-                        score = section.get("score", "N/A")
-                        reason = section.get("reason", "").strip()
-                
-                        row = f"**{name}**: {score}/10"
-                        if reason:
-                            row += f" — _{reason}_"
-                        st.markdown(f"- {row}")
-
-
+                st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
 
             with col2:
-                insight = rec.get("Summary Insight")
-                if insight:
+                summary = rec.get("Summary Insight", "").strip()
+                if summary:
                     st.markdown("**💡 Summary Insight:**")
-                    st.info(insight)
+                    st.success(summary)
                 else:
                     st.markdown("**💡 Summary Insight:**")
-                    st.info("No summary insight generated.")
+                    st.warning("No insight available.")
 
+            # Section Scores
+            section_scores = rec.get("Section Scores", [])
+            if section_scores:
+                st.markdown("**📊 Section-wise Breakdown:**")
+                cols = st.columns(2)
+                for i, section in enumerate(section_scores):
+                    name = section.get("name")
+                    score = section.get("score")
+                    reason = section.get("reason", "")
+                    with cols[i % 2]:
+                        st.markdown(f"**{name}:** {score}/10")
+                        if reason:
+                            st.caption(reason)
 
+            # Red Flags
             red_flags = rec.get("Red Flags", [])
             if red_flags:
                 st.markdown("**⚠️ Red Flags:**")
                 for flag in red_flags:
                     st.markdown(f"- {flag}")
 
+            # Due Diligence Questions
             questions = rec.get("Suggested Questions", [])
             if questions:
                 st.markdown("**❓ Suggested Due Diligence Questions:**")
