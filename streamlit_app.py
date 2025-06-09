@@ -257,39 +257,13 @@ with tab1:
                     # THEN add FullText and filename
                     result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
-                    result["Summary Insight"] = st.session_state.insights_cache[pdf_file.name].get("Summary Insight", "")
-                    result["Red Flags"] = st.session_state.insights_cache[pdf_file.name].get("Red Flags", [])
-
-                    
-                    # 2b) Generate Insight Summary + Red Flags (store both in result and cache)
-                    try:
-                        insight_prompt = build_insight_prompt(deck_text)
-                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                    
-                        result["Summary Insight"] = insight_result.get("Summary Insight", "").strip()
-                        result["Red Flags"] = insight_result.get("Red Flags", [])
-                        st.session_state.insights_cache[pdf_file.name] = insight_result
-                    except Exception as e:
-                        result["Summary Insight"] = "Could not generate insight."
-                        result["Red Flags"] = []
-                        st.session_state.insights_cache[pdf_file.name] = {
-                            "Summary Insight": "Could not generate insight.",
-                            "Red Flags": []
-                        }
-
-
-
 
                     os.remove(temp_path)
 
                     # 2) Build few‐shot prompt and call ChatGPT
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
-                    result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
-                    result["Summary Insight"] = st.session_state.insights_cache[pdf_file.name].get("Summary Insight", "")
-                    result["Red Flags"] = st.session_state.insights_cache[pdf_file.name].get("Red Flags", [])
-
                     
                     # 👇 If you run AI insight generation here too:
                     # from analyze import build_insight_prompt, 
@@ -301,11 +275,9 @@ with tab1:
                         result["Section Scores"] = scoring_result.get("sections", [])
                         result["Pitch Score"] = scoring_result.get("total_score", None)
                         # Only override if a new summary was returned
-                        # Optional: don’t overwrite insight summary with structured one
-                        if "Summary Insight" not in result:
-                            structured_summary = scoring_result.get("summary", "").strip()
-                            if structured_summary:
-                                result["Summary Insight"] = structured_summary
+                        structured_summary = scoring_result.get("summary", "").strip()
+                        if structured_summary:
+                            result["Summary Insight"] = structured_summary
 
                     except Exception as e:
                         result["Section Scores"] = []
@@ -617,9 +589,6 @@ with tab3:
                         insight_prompt = build_insight_prompt(rec.get("FullText", ""))
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                         st.session_state.insights_cache[filename] = insight_result
-                        rec["Summary Insight"] = insight_result.get("Summary Insight", "")
-                        rec["Red Flags"] = insight_result.get("Red Flags", [])
-
                     except:
                         st.session_state.insights_cache[filename] = {
                             "Red Flags": [],
@@ -629,9 +598,7 @@ with tab3:
                 # Retrieve from cache and show
                 insight = st.session_state.insights_cache[filename]
                 summary = insight.get("Summary Insight", "").strip()
-                rec["Summary Insight"] = insight.get("Summary Insight", "")
-                rec["Red Flags"] = insight.get("Red Flags", [])
-                            
+            
                 if summary:
                     st.markdown("**💡 Summary Insight:**")
                     st.success(summary)
