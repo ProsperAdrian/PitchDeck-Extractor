@@ -61,24 +61,24 @@ def set_custom_styles():
     }}
     .block-container {{
         background-color: rgba(255, 255, 255, 0.95);
-        border-radius: 1rem;
+        border-radius: rem;
         padding: 2rem;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+        box-shadow: 0 8px 30px rgba(0,0,0,0.);
     }}
-    h1 {{
+    h {{
         font-size: 28px !important;
         font-weight: 700;
     }}
     .uploaded-filename, .processing-msg, .success-msg, .extracted-title {{
-        font-size: 14px;
+        font-size: 4px;
         font-weight: 500;
         color: #222;
-        margin-top: -0.1rem;
+        margin-top: -0.rem;
         margin-bottom: 2.5rem;
     }}
     .stButton>button {{
         border-radius: 8px;
-        padding: 0.5rem 1rem;
+        padding: 0.5rem rem;
         border: none;
         background-color: #3A86FF;
         color: white;
@@ -87,7 +87,7 @@ def set_custom_styles():
     }}
     .stButton>button:hover {{
         background-color: #265DAB;
-        transform: scale(1.02);
+        transform: scale(.02);
     }}
     .narrow-uploader {{
         max-width: 500px;
@@ -100,14 +100,14 @@ def set_custom_styles():
         display: none !important;
     }}
     .success-msg-container {{
-        font-size: 14px;
+        font-size: 4px;
         font-weight: 500;
         color: #222;
         margin-top: -0.5rem;
-        margin-bottom: 1rem;
+        margin-bottom: rem;
     }}
     .extracted-title {{
-        font-size: 18px;
+        font-size: 8px;
         font-weight: 600;
         margin-bottom: 0.8rem;
     }}
@@ -141,7 +141,7 @@ st.markdown("""
 # ─────────────────────────────────────────────────────────────────────────────
 # 5) APPLICATION TITLE & DESCRIPTION
 # ─────────────────────────────────────────────────────────────────────────────
-st.markdown('<h1>❖ Pitch Deck Analysis</h1>', unsafe_allow_html=True)
+st.markdown('<h>❖ Pitch Deck Analysis</h>', unsafe_allow_html=True)
 st.markdown("""
 Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to extract:
 **Startup Name**, **Founders**, **Founding Year**, **Industry**, **Niche**, **USP**, **Funding Stage**, **Revenue**, **Market Size**, and **Amount Raised**.
@@ -150,7 +150,7 @@ Upload one or more pitch‐deck PDFs. This tool leverages AI + heuristics to ext
 # ─────────────────────────────────────────────────────────────────────────────
 # 6) CREATE TWO TABS: LIBRARY VIEW &  VIEW
 # ─────────────────────────────────────────────────────────────────────────────
-tab1, tab2, tab3 = st.tabs(["Library View", "", "AI Insights"])
+tab1, tab2, tab3 = st.tabs(["Library View", "Dashboard", "AI Insights"])
 
 
 # ─────────────────────────────────────────────────────────────────────────────
