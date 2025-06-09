@@ -223,15 +223,14 @@ with tab1:
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    all_results = []      # Will hold the JSON‐extracted metadata for each deck
     if "all_results" not in st.session_state:
-        st.session_state.all_results = []
-
+        st.session_state["all_results"] = []
+    
     if "insights_cache" not in st.session_state:
-        st.session_state.insights_cache = {}
+        st.session_state["insights_cache"] = {}
+    
+    all_results = st.session_state["all_results"]
 
-        # Replace your list with the session one
-    all_results = st.session_state.all_results
 
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
