@@ -548,24 +548,14 @@ with tab3:
             with col2:
                 red_flags = rec.get("Red Flags", [])
 
-                st.markdown("""
-                <div style="
-                    border: 1px solid rgba(0,0,0,0.4);
-                    background-color: rgba(0,0,0,0.03);
-                    border-radius: 10px;
-                    padding: 1rem;
-                    margin-bottom: 1rem;
-                ">
-                """, unsafe_allow_html=True)
-
+            with col2:
+                red_flags = rec.get("Red Flags", [])
                 if red_flags:
-                    st.markdown("<strong>⚠️ Red Flags:</strong>", unsafe_allow_html=True)
+                    st.markdown("**⚠️ Red Flags:**")
                     for flag in red_flags:
-                        st.markdown(f"<div style='margin-top: 0.5rem;'>• {flag}</div>", unsafe_allow_html=True)
+                        st.markdown(f"- {flag}")
                 else:
-                    st.markdown("✅ <strong>No significant red flags identified</strong>", unsafe_allow_html=True)
-
-                st.markdown("</div>", unsafe_allow_html=True)
+                    st.markdown("**✅ No significant red flags identified**")
 
             # Section Scores - Enhanced Display
             section_scores = rec.get("Section Scores", [])
@@ -593,9 +583,7 @@ with tab3:
 
                 styled_table = section_table.style.applymap(color_score, subset=['Score (out of 10)'])
 
-                col_indent, col_table = st.columns([1, 8])  # Left indent layout
-                with col_table:
-                    st.dataframe(styled_table, use_container_width=False)
+                st.dataframe(styled_table, use_container_width=True)
 
             else:
                 st.info("No section score data available")
