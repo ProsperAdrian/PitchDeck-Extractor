@@ -258,7 +258,15 @@ with tab1:
                 try:
                     # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
-                    result["FullText"] = deck_text  # Needed for Tab 3 insight
+                    
+                    # FIRST build the result dict
+                    prompt = build_few_shot_prompt(deck_text)
+                    result = call_chatgpt(prompt, api_key=openai_api_key)
+                    
+                    # THEN add FullText and filename
+                    result["FullText"] = deck_text
+                    result["__filename"] = pdf_file.name
+
                     os.remove(temp_path)
 
                     # 2) Build few‐shot prompt and call ChatGPT
