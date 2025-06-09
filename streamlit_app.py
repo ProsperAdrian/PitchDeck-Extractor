@@ -584,19 +584,20 @@ with tab3:
                     st.markdown("**💡 Summary Insight:**")
                     st.warning("No insight available.")
 
-            # Section Scores
+            # Section Scores - 3-column Table Format
             section_scores = rec.get("Section Scores", [])
             if section_scores:
-                st.markdown("**📊 Section-wise Breakdown:**")
-                cols = st.columns(2)
-                for i, section in enumerate(section_scores):
-                    name = section.get("name")
-                    score = section.get("score")
-                    reason = section.get("reason", "")
-                    with cols[i % 2]:
-                        st.markdown(f"**{name}:** {score}/10")
-                        if reason:
-                            st.caption(reason)
+                st.markdown("**📊 Section-wise Breakdown (Table Format):**")
+                section_table = pd.DataFrame([
+                    {
+                        "Key Section": sec.get("name", ""),
+                        "Rating (out of 10)": sec.get("score", "N/A"),
+                        "Comment": sec.get("reason", "")
+                    }
+                    for sec in section_scores
+                ])
+                st.dataframe(section_table, use_container_width=True)
+
 
             # Red Flags
             red_flags = rec.get("Red Flags", [])
