@@ -15,7 +15,7 @@ import fitz                                # PyMuPDF, for rendering PDF pages
 from openai import OpenAI
 
 from extract_text import extract_text_from_pdf
-from analyze import (build_few_shot_prompt, call_chatgpt)
+from analyze import (build_few_shot_prompt, call_chatgpt,build_insight_prompt, call_chatgpt_insight)
 from analyze_scoring import build_structured_scoring_prompt, call_structured_pitch_scorer
 
 
@@ -284,7 +284,7 @@ with tab1:
                     
                     # Generate AI Insights
                     try:
-                        # if you still want to drive Red Flags from a GPT call:
+                        # if you still want to drive  from a GPT call:
                         insight_prompt = build_insight_prompt(deck_text)
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                         result["Red Flags"] = insight_result.get("Red Flags", [])
