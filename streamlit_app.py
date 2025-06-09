@@ -214,31 +214,21 @@ def identify_key_slide_pages(page_texts: list[str], api_key: str) -> dict:
 # 8) TAB 1: LIBRARY VIEW → UPLOAD + EXTRACT + KEY SLIDE PREVIEW
 # ─────────────────────────────────────────────────────────────────────────────
 with tab1:
-    # 8a) FILE UPLOADER (centered)
     st.markdown('<div class="narrow-uploader">', unsafe_allow_html=True)
     uploaded_files = st.file_uploader(
-        "Drag & drop PDF(s) here (or click to browse)", 
-        type=["pdf"], 
+        "Drag & drop PDF(s) here (or click to browse)",
+        type=["pdf"],
         accept_multiple_files=True
     )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    all_results = []      # Will hold the JSON‐extracted metadata for each deck
     if "all_results" not in st.session_state:
         st.session_state.all_results = []
 
-    if "insights_cache" not in st.session_state:
-        st.session_state.insights_cache = {}
-
-        # Replace your list with the session one
-    all_results = st.session_state.all_results
-
-    pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
-
     if uploaded_files:
+        pdf_buffers = {}
         with st.spinner("🔎 Analyzing pitch decks..."):
             for pdf_file in uploaded_files:
-
                 raw_bytes = pdf_file.read()
                 temp_folder = "temp"
                 os.makedirs(temp_folder, exist_ok=True)
@@ -247,47 +237,49 @@ with tab1:
                     f.write(raw_bytes)
 
                 try:
-                    # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
-                    
-                    # Extract text, run your few-shot extractor *once*, then attach metadata
-                    deck_text = extract_text_from_pdf(temp_path)
+
+                    # 1) Extract metadata once
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
-    
-                    # now store both the raw text (for later AI-Insights) and the filename
-                    result["FullText"]   = deck_text
+                    result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
-    
                     os.remove(temp_path)
-                    
-                    # 👇 If you run AI insight generation here too:
-                    # from analyze import build_insight_prompt, 
-                    
-                    # Structured pitch scoring
+
+                    # 2) Structured scoring
                     try:
                         scoring_prompt = build_structured_scoring_prompt(deck_text)
-                        scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
-                        result["Section Scores"] = scoring_result.get("sections", [])
-                        result["Pitch Score"] = scoring_result.get("total_score", None)
-                        # Only override if a new summary was returned
-                        structured_summary = scoring_result.get("summary", "").strip()
-                        if structured_summary:
-                            result["Summary Insight"] = structured_summary
-
-                    except Exception as e:
+                        scoring = call_structured_pitch_scorer(
+                            scoring_prompt, api_key=openai_api_key
+                        )
+                        result["Section Scores"] = scoring.get("sections", [])
+                        result["Pitch Score"] = scoring.get("total_score")
+                        if scoring.get("summary"):
+                            result["Summary Insight"] = scoring["summary"].strip()
+                    except:
                         result["Section Scores"] = []
                         result["Pitch Score"] = None
                         result["Summary Insight"] = "Could not generate structured insight."
 
-                    
-                    # 👇 Store in Streamlit session state
+                    # 3) AI Insight generation
+                    try:
+                        insight_prompt = build_insight_prompt(deck_text)
+                        insight = call_chatgpt_insight(
+                            insight_prompt, api_key=openai_api_key
+                        )
+                        result["Summary Insight"] = (
+                            insight.get("Summary Insight", "").strip()
+                            or result.get("Summary Insight", "No insight generated.")
+                        )
+                        result["Red Flags"] = insight.get("Red Flags", [])
+                    except:
+                        if "Summary Insight" not in result:
+                            result["Summary Insight"] = "Could not generate insight."
+                        result["Red Flags"] = []
+
+                    # Store
                     st.session_state.all_results.append(result)
-
-
-                    # 3) Store PDF bytes so we can render pages later
-                    pdf_buffers[pdf_file.name] = raw_bytes
-
+                    pdf_buffers[result["__filename"]] = raw_bytes
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
                     continue
@@ -559,74 +551,43 @@ with tab2:
 # ─────────────────────────────────────────────────────────────────────────────
 # 10) TAB 3: AI INSIGHTS
 # ─────────────────────────────────────────────────────────────────────────────
+# TAB 3: AI INSIGHTS
 with tab3:
     st.markdown("### 🧠 AI-Generated Startup Insights")
     st.markdown("Below is an AI assessment of each pitch deck, based on team, traction, market, and clarity.")
 
-    if not all_results:
+    if not st.session_state.all_results:
         st.info("Please upload and process decks in the Library View first.")
     else:
-        for rec in all_results:
+        for rec in st.session_state.all_results:
             st.markdown("---")
             st.subheader(f"🚀 {rec.get('Startup Name', 'Unnamed Startup')}")
 
-            # Metrics Row
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                pitch_score = rec.get("Pitch Score")
-                st.metric("Pitch Quality Score", f"{pitch_score}/100" if pitch_score is not None else "N/A")
+            # Score
+            st.metric(
+                "Pitch Quality Score",
+                f"{rec.get('Pitch Score')}/100" if rec.get('Pitch Score') is not None else "N/A"
+            )
 
-            with col2:
-                filename = rec["__filename"]
-            
-                # If we haven’t yet asked for an insight, do it now and print out what we got
-                if filename not in st.session_state.insights_cache:
-                    insight_prompt = build_insight_prompt(rec["FullText"])
-                    st.write("🔍 Insight prompt (first 200 chars):", insight_prompt[:200])
-                    
-                    insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
-                    st.write("💬 Raw insight result:", insight_result)
-                    
-                    st.session_state.insights_cache[filename] = insight_result
-            
-                insight = st.session_state.insights_cache[filename]
-                summary = insight.get("Summary Insight", "").strip()
-            
-                st.markdown("**💡 Summary Insight:**")
-                if summary:
-                    st.success(summary)
-                else:
-                    st.warning("No insight available.")
-
-
-            
-                # Also show red flags from insight
-                red_flags = insight.get("Red Flags", [])
-                if red_flags:
-                    st.markdown("**⚠️ Red Flags:**")
-                    for flag in red_flags:
-                        st.markdown(f"- {flag}")
-
-
-
-            # Section Scores - 3-column Table Format
-            section_scores = rec.get("Section Scores", [])
-            if section_scores:
-                st.markdown("**📊 Section-wise Breakdown:**")
-                section_table = pd.DataFrame([
-                    {
-                        "Key Section": sec.get("name", ""),
-                        "Rating (out of 10)": sec.get("score", "N/A"),
-                        "Comment": sec.get("reason", "")
-                    }
-                    for sec in section_scores
-                ])
-                st.dataframe(section_table, use_container_width=True)
-
+            # Summary Insight
+            st.markdown("**💡 Summary Insight:**")
+            st.success(rec.get("Summary Insight", "No insight available."))
 
             # Red Flags
-            red_flags = rec.get("Red Flags", [])
-            if red_flags:
+            flags = rec.get("Red Flags", [])
+            if flags:
                 st.markdown("**⚠️ Red Flags:**")
-                for flag in red_flags:
-                    st.markdown(f"- {flag}")
+                for f in flags:
+                    st.markdown(f"- {f}")
+
+            # Section Scores table
+            sections = rec.get("Section Scores", [])
+            if sections:
+                df_sec = pd.DataFrame([{
+                    "Key Section": s.get("name"),
+                    "Rating (out of 10)": s.get("score"),
+                    "Comment": s.get("reason")
+                } for s in sections])
+                st.markdown("**📊 Section-wise Breakdown:**")
+                st.dataframe(df_sec, use_container_width=True)
+
