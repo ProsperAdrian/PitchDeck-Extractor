@@ -257,6 +257,9 @@ with tab1:
                     # THEN add FullText and filename
                     result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
+                    result["Summary Insight"] = st.session_state.insights_cache[pdf_file.name].get("Summary Insight", "")
+                    result["Red Flags"] = st.session_state.insights_cache[pdf_file.name].get("Red Flags", [])
+
                     
                     # 2b) Generate Insight Summary + Red Flags (store both in result and cache)
                     try:
@@ -282,7 +285,11 @@ with tab1:
                     # 2) Build few‐shot prompt and call ChatGPT
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
+                    result["FullText"] = deck_text
                     result["__filename"] = pdf_file.name
+                    result["Summary Insight"] = st.session_state.insights_cache[pdf_file.name].get("Summary Insight", "")
+                    result["Red Flags"] = st.session_state.insights_cache[pdf_file.name].get("Red Flags", [])
+
                     
                     # 👇 If you run AI insight generation here too:
                     # from analyze import build_insight_prompt, 
