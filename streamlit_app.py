@@ -54,24 +54,6 @@ st.markdown(HIDE_WARNING_STYLE, unsafe_allow_html=True)
 def set_custom_styles():
     custom_css = f"""
     <style>
-    /* Make the top header and tabs sticky */
-    .block-container > div:nth-child(1) {{
-        position: sticky;
-        top: 0;
-        z-index: 999;
-        background-color: white;  /* Match page background */
-        padding-top: 1rem;
-        padding-bottom: 0.5rem;
-    }}
-    
-    /* Optional: add subtle shadow when sticky */
-    .block-container > div:nth-child(1)::after {{
-        content: "";
-        display: block;
-        height: 1px;
-        background: #eee;
-        margin-top: 0.5rem;
-    }}
     .stApp {{
         background-size: cover;
         background-position: center;
