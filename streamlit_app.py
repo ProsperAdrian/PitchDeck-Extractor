@@ -275,9 +275,11 @@ with tab1:
                         result["Section Scores"] = scoring_result.get("sections", [])
                         result["Pitch Score"] = scoring_result.get("total_score", None)
                         # Only override if a new summary was returned
-                        structured_summary = scoring_result.get("summary", "").strip()
-                        if structured_summary:
-                            result["Summary Insight"] = structured_summary
+                        # Optional: don’t overwrite insight summary with structured one
+                        if "Summary Insight" not in result:
+                            structured_summary = scoring_result.get("summary", "").strip()
+                            if structured_summary:
+                                result["Summary Insight"] = structured_summary
 
                     except Exception as e:
                         result["Section Scores"] = []
@@ -589,6 +591,9 @@ with tab3:
                         insight_prompt = build_insight_prompt(rec.get("FullText", ""))
                         insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
                         st.session_state.insights_cache[filename] = insight_result
+                        rec["Summary Insight"] = insight_result.get("Summary Insight", "")
+                        rec["Red Flags"] = insight_result.get("Red Flags", [])
+
                     except:
                         st.session_state.insights_cache[filename] = {
                             "Red Flags": [],
