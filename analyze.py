@@ -177,8 +177,8 @@ def build_insight_prompt(deck_slide_text: str) -> str:
 You are a world-class venture capital analyst. Given the slide text from a startup's pitch deck, evaluate the deck's quality and investment readiness.
 
 Only flag information as missing if it is genuinely absent or unclear. For example:
-- If a deck has a slide titled similar to “Business Model” or “Revenue Model”, do not say the revenue model is missing.
-- If a slide shows customer acquisition channels or funnels, do not say the strategy is unclear.
+- If a deck has a slide titled similar to “Business Model” or “Revenue Model” or a calculation of revenue/volume/sales is made, do not say the revenue model is missing.
+- If a slide shows customer acquisition plan or channels or funnels, do not say the strategy is unclear.
 - If team roles and bios are listed, do not flag them as incomplete.
 
 Be generous but fair in your assessment.
