@@ -219,6 +219,12 @@ with tab1:
     st.markdown('</div>', unsafe_allow_html=True)
 
     all_results = []      # Will hold the JSON‐extracted metadata for each deck
+    if "all_results" not in st.session_state:
+    st.session_state.all_results = []
+
+    # Replace your list with the session one
+    all_results = st.session_state.all_results
+
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
     if uploaded_files:
@@ -241,7 +247,24 @@ with tab1:
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
                     result["__filename"] = pdf_file.name
-                    all_results.append(result)
+                    
+                    # 👇 If you run AI insight generation here too:
+                    # from analyze import build_insight_prompt, call_chatgpt_insight
+                    insight_prompt = build_insight_prompt(deck_text)
+                    try:
+                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                        result.update(insight_result)
+                    except Exception as e:
+                        result.update({
+                            "Pitch Score": None,
+                            "Red Flags": [],
+                            "Suggested Questions": [],
+                            "Summary Insight": "Could not generate insight."
+                        })
+                    
+                    # 👇 Store in Streamlit session state
+                    st.session_state.all_results.append(result)
+
 
                     # 3) Store PDF bytes so we can render pages later
                     pdf_buffers[pdf_file.name] = raw_bytes
