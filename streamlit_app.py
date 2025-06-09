@@ -250,20 +250,16 @@ with tab1:
                     # 1) Extract all text from PDF
                     deck_text = extract_text_from_pdf(temp_path)
                     
-                    # FIRST build the result dict
+                    # Extract text, run your few-shot extractor *once*, then attach metadata
+                    deck_text = extract_text_from_pdf(temp_path)
                     prompt = build_few_shot_prompt(deck_text)
                     result = call_chatgpt(prompt, api_key=openai_api_key)
-                    
-                    # THEN add FullText and filename
-                    result["FullText"] = deck_text
+    
+                    # now store both the raw text (for later AI-Insights) and the filename
+                    result["FullText"]   = deck_text
                     result["__filename"] = pdf_file.name
-
+    
                     os.remove(temp_path)
-
-                    # 2) Build few‐shot prompt and call ChatGPT
-                    prompt = build_few_shot_prompt(deck_text)
-                    result = call_chatgpt(prompt, api_key=openai_api_key)
-                    result["__filename"] = pdf_file.name
                     
                     # 👇 If you run AI insight generation here too:
                     # from analyze import build_insight_prompt, 
