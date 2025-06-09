@@ -609,11 +609,3 @@ with tab3:
                     for sec in section_scores
                 ])
                 st.dataframe(section_table, use_container_width=True)
-
-
-            # Red Flags
-            red_flags = rec.get("Red Flags", [])
-            if red_flags:
-                st.markdown("**⚠️ Red Flags:**")
-                for flag in red_flags:
-                    st.markdown(f"- {flag}")
