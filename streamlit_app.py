@@ -270,7 +270,9 @@ with tab1:
 
                     # 2) Build few‐shot prompt and call ChatGPT
                     prompt = build_few_shot_prompt(deck_text)
-                    result = call_chatgpt(prompt, api_key=openai_api_key)
+                    metadata = call_chatgpt(prompt, api_key=openai_api_key)
+                    result = metadata.copy()  # now it's safe to enrich it with Section Scores
+
                     result["__filename"] = pdf_file.name
                     
                     # 👇 If you run AI insight generation here too:
