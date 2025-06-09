@@ -235,65 +235,94 @@ with tab1:
 
     pdf_buffers = {}      # Will hold raw PDF bytes for later “Key Slide Preview”
 
-if uploaded_files:
-    with st.spinner("🔎 Analyzing pitch decks..."):
-        for pdf_file in uploaded_files:
-            raw_bytes = pdf_file.read()
-            temp_folder = "temp"
-            os.makedirs(temp_folder, exist_ok=True)
-            temp_path = os.path.join(temp_folder, pdf_file.name)
-            with open(temp_path, "wb") as f:
-                f.write(raw_bytes)
+    if uploaded_files:
+        with st.spinner("🔎 Analyzing pitch decks..."):
+            for pdf_file in uploaded_files:
 
-            try:
-                # 1) Extract all text
-                deck_text = extract_text_from_pdf(temp_path)
-                os.remove(temp_path)
+                raw_bytes = pdf_file.read()
+                temp_folder = "temp"
+                os.makedirs(temp_folder, exist_ok=True)
+                temp_path = os.path.join(temp_folder, pdf_file.name)
+                with open(temp_path, "wb") as f:
+                    f.write(raw_bytes)
 
-                # 2) Extract basic fields
-                prompt = build_few_shot_prompt(deck_text)
-                result = call_chatgpt(prompt, api_key=openai_api_key)
-                result["__filename"] = pdf_file.name
-                result["FullText"] = deck_text
-
-                # 3) Generate Insight Summary + Red Flags
                 try:
-                    insight_prompt = build_insight_prompt(deck_text)
-                    insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                    # 1) Extract all text from PDF
+                    deck_text = extract_text_from_pdf(temp_path)
+                    
+                    # FIRST build the result dict
+                    prompt = build_few_shot_prompt(deck_text)
+                    result = call_chatgpt(prompt, api_key=openai_api_key)
+                    
+                    # THEN add FullText and filename
+                    result["FullText"] = deck_text
+                    result["__filename"] = pdf_file.name
+                    result["Summary Insight"] = st.session_state.insights_cache[pdf_file.name].get("Summary Insight", "")
+                    result["Red Flags"] = st.session_state.insights_cache[pdf_file.name].get("Red Flags", [])
 
-                    result["Summary Insight"] = insight_result.get("Summary Insight", "").strip()
-                    result["Red Flags"] = insight_result.get("Red Flags", [])
-                    st.session_state.insights_cache[pdf_file.name] = insight_result
-                except:
-                    result["Summary Insight"] = "Could not generate insight."
-                    result["Red Flags"] = []
-                    st.session_state.insights_cache[pdf_file.name] = {
-                        "Summary Insight": "Could not generate insight.",
-                        "Red Flags": []
-                    }
+                    
+                    # 2b) Generate Insight Summary + Red Flags (store both in result and cache)
+                    try:
+                        insight_prompt = build_insight_prompt(deck_text)
+                        insight_result = call_chatgpt_insight(insight_prompt, api_key=openai_api_key)
+                    
+                        result["Summary Insight"] = insight_result.get("Summary Insight", "").strip()
+                        result["Red Flags"] = insight_result.get("Red Flags", [])
+                        st.session_state.insights_cache[pdf_file.name] = insight_result
+                    except Exception as e:
+                        result["Summary Insight"] = "Could not generate insight."
+                        result["Red Flags"] = []
+                        st.session_state.insights_cache[pdf_file.name] = {
+                            "Summary Insight": "Could not generate insight.",
+                            "Red Flags": []
+                        }
 
-                # 4) Structured scoring
-                try:
-                    scoring_prompt = build_structured_scoring_prompt(deck_text)
-                    scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
-                    result["Section Scores"] = scoring_result.get("sections", [])
-                    result["Pitch Score"] = scoring_result.get("total_score", None)
-                    if not result.get("Summary Insight") or result["Summary Insight"] == "Could not generate insight.":
-                        structured_summary = scoring_result.get("summary", "").strip()
-                        if structured_summary:
-                            result["Summary Insight"] = structured_summary
-                except:
-                    result["Section Scores"] = []
-                    result["Pitch Score"] = None
 
-                # 5) Save final result
-                st.session_state.all_results.append(result)
-                pdf_buffers[pdf_file.name] = raw_bytes
 
-            except Exception as e:
-                st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
-                continue
 
+                    os.remove(temp_path)
+
+                    # 2) Build few‐shot prompt and call ChatGPT
+                    prompt = build_few_shot_prompt(deck_text)
+                    result = call_chatgpt(prompt, api_key=openai_api_key)
+                    result["FullText"] = deck_text
+                    result["__filename"] = pdf_file.name
+                    result["Summary Insight"] = st.session_state.insights_cache[pdf_file.name].get("Summary Insight", "")
+                    result["Red Flags"] = st.session_state.insights_cache[pdf_file.name].get("Red Flags", [])
+
+                    
+                    # 👇 If you run AI insight generation here too:
+                    # from analyze import build_insight_prompt, 
+                    
+                    # Structured pitch scoring
+                    try:
+                        scoring_prompt = build_structured_scoring_prompt(deck_text)
+                        scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key=openai_api_key)
+                        result["Section Scores"] = scoring_result.get("sections", [])
+                        result["Pitch Score"] = scoring_result.get("total_score", None)
+                        # Only override if a new summary was returned
+                        # Optional: don’t overwrite insight summary with structured one
+                        if "Summary Insight" not in result:
+                            structured_summary = scoring_result.get("summary", "").strip()
+                            if structured_summary:
+                                result["Summary Insight"] = structured_summary
+
+                    except Exception as e:
+                        result["Section Scores"] = []
+                        result["Pitch Score"] = None
+                        result["Summary Insight"] = "Could not generate structured insight."
+
+                    
+                    # 👇 Store in Streamlit session state
+                    st.session_state.all_results.append(result)
+
+
+                    # 3) Store PDF bytes so we can render pages later
+                    pdf_buffers[pdf_file.name] = raw_bytes
+
+                except Exception as e:
+                    st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
+                    continue
 
         # 8b) AFTER PROCESSING, SHOW THE “LIBRARY” TABLE + EXPORT BUTTONS
         if all_results:
