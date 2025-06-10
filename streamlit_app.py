@@ -119,7 +119,7 @@ st.markdown("""
     <style>
     /* Narrow dropdowns in the main view (not sidebar) */
     div[data-baseweb="select"] {
-        max-width: 400px !important;
+        max-width: 500px !important;
     }
     </style>
 """, unsafe_allow_html=True)
