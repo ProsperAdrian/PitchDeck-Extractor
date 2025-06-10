@@ -208,31 +208,23 @@ if __name__ == "__main__":
             normalized["Market"] = {"TAM": None, "SAM": None, "SOM": None}
 
         # 4a) Generate Structured Scores
-        structured_summary = ""
         scoring_prompt = build_structured_scoring_prompt(deck_text)
         try:
             scoring_result = call_structured_pitch_scorer(scoring_prompt, api_key)
             result["Section Scores"] = scoring_result.get("sections", [])
             result["Pitch Score"] = scoring_result.get("total_score", None)
-            structured_summary = scoring_result.get("summary", "").strip()
         except Exception as e:
             result["Section Scores"] = []
             result["Pitch Score"] = None
-            structured_summary = ""
         
-        # 4b) Generate Red Flags + Questions + Fallback Summary
-        fallback_summary = ""
+        # 4b) Generate Red Flags
         insight_prompt = build_insight_prompt(deck_text)
         try:
             insight_result = call_chatgpt_insight(insight_prompt, api_key)
             result["Red Flags"] = insight_result.get("Red Flags", [])
-            fallback_summary = insight_result.get("Summary Insight", "").strip()
         except Exception as e:
             result["Red Flags"] = []
-            fallback_summary = ""
-        
-        # 4c) Final Summary Insight (prefer structured)
-        result["Summary Insight"] = structured_summary or None
+    
 
         # Merge extracted fields
         result.update(normalized)
