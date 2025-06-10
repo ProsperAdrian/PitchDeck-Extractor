@@ -226,6 +226,9 @@ with tab1:
     if "insights_cache" not in st.session_state:
         st.session_state.insights_cache = {}
 
+    if "processed_filenames" not in st.session_state:
+        st.session_state.processed_filenames = set()
+
     all_results = st.session_state.all_results
     pdf_buffers = {}
 
@@ -234,12 +237,19 @@ with tab1:
 
     if uploaded_files:
         with st.spinner("🔎 Analyzing pitch decks..."):
-            for pdf_file in uploaded_files:
+            # Filter for new files only
+            new_files = [pdf_file for pdf_file in uploaded_files 
+                         if pdf_file.name not in st.session_state.processed_filenames]
+
+            for pdf_file in new_files:
                 raw_bytes = pdf_file.read()
                 pdf_hash = get_pdf_hash(raw_bytes)
                 if pdf_hash in st.session_state.insights_cache:
-                    all_results.append(st.session_state.insights_cache[pdf_hash])
-                    pdf_buffers[pdf_file.name] = raw_bytes
+                    # Skip if already cached to avoid duplicate processing
+                    if pdf_file.name not in st.session_state.processed_filenames:
+                        all_results.append(st.session_state.insights_cache[pdf_hash])
+                        pdf_buffers[pdf_file.name] = raw_bytes
+                        st.session_state.processed_filenames.add(pdf_file.name)
                     continue
 
                 temp_folder = "temp"
@@ -273,6 +283,7 @@ with tab1:
                     st.session_state.insights_cache[pdf_hash] = result
                     all_results.append(result)
                     pdf_buffers[pdf_file.name] = raw_bytes
+                    st.session_state.processed_filenames.add(pdf_file.name)
                     os.remove(temp_path)
 
                 except Exception as e:
@@ -339,6 +350,7 @@ with tab1:
                     rec for rec in all_results
                     if (rec.get("StartupName") or rec.get("Startup Name")) not in startups_to_remove
                 ]
+                st.session_state.all_results = all_results  # Update session state
 
             st.dataframe(df, use_container_width=True)
 
