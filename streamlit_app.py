@@ -229,6 +229,9 @@ with tab1:
     if "processed_filenames" not in st.session_state:
         st.session_state.processed_filenames = set()
 
+    if "pdf_bytes_cache" not in st.session_state:
+        st.session_state.pdf_bytes_cache = {}  # Persist PDF bytes across reruns
+
     all_results = st.session_state.all_results
     pdf_buffers = {}
 
@@ -248,7 +251,7 @@ with tab1:
                     # Skip if already cached to avoid duplicate processing
                     if pdf_file.name not in st.session_state.processed_filenames:
                         all_results.append(st.session_state.insights_cache[pdf_hash])
-                        pdf_buffers[pdf_file.name] = raw_bytes
+                        st.session_state.pdf_bytes_cache[pdf_file.name] = raw_bytes
                         st.session_state.processed_filenames.add(pdf_file.name)
                     continue
 
@@ -282,13 +285,19 @@ with tab1:
                     # Store results in cache and session state
                     st.session_state.insights_cache[pdf_hash] = result
                     all_results.append(result)
-                    pdf_buffers[pdf_file.name] = raw_bytes
+                    st.session_state.pdf_bytes_cache[pdf_file.name] = raw_bytes
                     st.session_state.processed_filenames.add(pdf_file.name)
                     os.remove(temp_path)
 
                 except Exception as e:
                     st.error(f"❌ Error processing **{pdf_file.name}**: {e}")
                     continue
+
+        # Populate pdf_buffers for all results
+        for rec in all_results:
+            filename = rec.get("__filename")
+            if filename in st.session_state.pdf_bytes_cache:
+                pdf_buffers[filename] = st.session_state.pdf_bytes_cache[filename]
 
         if all_results:
             st.markdown(
@@ -350,7 +359,12 @@ with tab1:
                     rec for rec in all_results
                     if (rec.get("StartupName") or rec.get("Startup Name")) not in startups_to_remove
                 ]
-                st.session_state.all_results = all_results  # Update session state
+                st.session_state.all_results = all_results
+                # Update pdf_bytes_cache to remove deleted files
+                st.session_state.pdf_bytes_cache = {
+                    k: v for k, v in st.session_state.pdf_bytes_cache.items()
+                    if k in [rec.get("__filename") for rec in all_results]
+                }
 
             st.dataframe(df, use_container_width=True)
 
@@ -386,35 +400,38 @@ with tab1:
             )
 
             if selected_deck:
-                pdf_bytes = pdf_buffers[selected_deck]
-                doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                page_texts = [page.get_text() for page in doc]
-                key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
-                
-                team_idx = (int(key_info["TeamPage"]) - 1) if key_info.get("TeamPage") else None
-                market_idx = (int(key_info["MarketPage"]) - 1) if key_info.get("MarketPage") else None
-                traction_idx = (int(key_info["TractionPage"]) - 1) if key_info.get("TractionPage") else None
+                try:
+                    pdf_bytes = pdf_buffers[selected_deck]
+                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+                    page_texts = [page.get_text() for page in doc]
+                    key_info = identify_key_slide_pages(page_texts, api_key=openai_api_key)
+                    
+                    team_idx = (int(key_info["TeamPage"]) - 1) if key_info.get("TeamPage") else None
+                    market_idx = (int(key_info["MarketPage"]) - 1) if key_info.get("MarketPage") else None
+                    traction_idx = (int(key_info["TractionPage"]) - 1) if key_info.get("TractionPage") else None
 
-                key_slides = []
-                if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
-                    key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
-                if isinstance(market_idx, int) and 0 <= market_idx < doc.page_count:
-                    key_slides.append((f"Market Slide (page {market_idx+1})", market_idx))
-                if isinstance(traction_idx, int) and 0 <= traction_idx < doc.page_count:
-                    key_slides.append((f"Traction Slide (page {traction_idx+1})", traction_idx))
+                    key_slides = []
+                    if isinstance(team_idx, int) and 0 <= team_idx < doc.page_count:
+                        key_slides.append((f"Team Slide (page {team_idx+1})", team_idx))
+                    if isinstance(market_idx, int) and 0 <= market_idx < doc.page_count:
+                        key_slides.append((f"Market Slide (page {market_idx+1})", market_idx))
+                    if isinstance(traction_idx, int) and 0 <= traction_idx < doc.page_count:
+                        key_slides.append((f"Traction Slide (page {traction_idx+1})", traction_idx))
 
-                if not key_slides:
-                    st.warning("⚠️ ChatGPT did not locate Team/Market/Traction slides in this deck.")
-                else:
-                    cols = st.columns(len(key_slides))
-                    for col, (label, page_index) in zip(cols, key_slides):
-                        page = doc[page_index]
-                        pix = page.get_pixmap(dpi=100)
-                        img_bytes = pix.tobytes("png")
-                        col.image(img_bytes, caption=label, use_container_width=True)
+                    if not key_slides:
+                        st.warning("⚠️ ChatGPT did not locate Team/Market/Traction slides in this deck.")
+                    else:
+                        cols = st.columns(len(key_slides))
+                        for col, (label, page_index) in zip(cols, key_slides):
+                            page = doc[page_index]
+                            pix = page.get_pixmap(dpi=100)
+                            img_bytes = pix.tobytes("png")
+                            col.image(img_bytes, caption=label, use_container_width=True)
 
-                doc.close()
-
+                    doc.close()
+                except KeyError:
+                    st.error(f"❌ Unable to preview **{selected_deck}**: PDF data not found. Try re-uploading the file.")
+                    
 # ─────────────────────────────────────────────────────────────────────────────
 # 9) TAB 2: DASHBOARD & INTERACTIVE FILTERING
 # ─────────────────────────────────────────────────────────────────────────────
