@@ -1,0 +1,17 @@
+# .github/workflows/keep-awake.yml
+name: Keep Streamlit App Awake
+
+on:
+  schedule:
+    # At minute 0 of every 7th hour (i.e. 00:00, 07:00, 14:00, 21:00 UTC)
+    - cron: '0 */7 * * *'
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Streamlit app
+        run: |
+          URL="https://pitchdeck-analyser.streamlit.app/"
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "$URL")
+          echo "📶 PINGED $URL → HTTP $HTTP_STATUS"
