@@ -17,4 +17,9 @@ jobs:
           HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" \
             -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
             "$URL")
-          echo "📶 PINGED $URL → HTTP $HTTP_STATUS"
+          if [ "$HTTP_STATUS" -ne 200 ]; then
+            echo "❌ Failed to ping $URL. HTTP status: $HTTP_STATUS"
+          else
+            echo "📶 PINGED $URL → HTTP $HTTP_STATUS"
+          fi
+          exit 0 # Prevent job failure
