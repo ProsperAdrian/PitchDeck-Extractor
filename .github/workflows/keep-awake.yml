@@ -3,15 +3,18 @@ name: Keep Streamlit App Awake
 
 on:
   schedule:
-    # At minute 0 of every 7th hour (i.e. 00:00, 07:00, 14:00, 21:00 UTC)
-    - cron: '0 */7 * * *'
+    # Every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit app
+      - name: Wake Streamlit app with browser‐style ping
         run: |
           URL="https://pitchdeck-analyser.streamlit.app/"
-          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "$URL")
+          HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
+            "$URL")
           echo "📶 PINGED $URL → HTTP $HTTP_STATUS"
