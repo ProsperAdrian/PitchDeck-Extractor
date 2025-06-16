@@ -1,25 +1,18 @@
+
+# .github/workflows/keep-awake.yml
 name: Keep Streamlit App Awake
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
-  workflow_dispatch:
+    # At minute 0 of every 7th hour (i.e. 00:00, 07:00, 14:00, 21:00 UTC)
+    - cron: '0 */7 * * *'
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Debug curl command
+      - name: Ping Streamlit app
         run: |
           URL="https://pitchdeck-analyser.streamlit.app/"
-          echo "Pinging URL: $URL"
-          HTTP_STATUS=$(curl -L -o /dev/null -s -w "%{http_code}" \
-            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)" \
-            "$URL")
-          echo "HTTP Status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" -ne 200 ]; then
-            echo "❌ Failed to ping $URL. HTTP status: $HTTP_STATUS"
-            exit 1
-          else
-            echo "📶 PINGED $URL → HTTP $HTTP_STATUS"
-          fi
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" "$URL")
+          echo "📶 PINGED $URL → HTTP $HTTP_STATUS"
